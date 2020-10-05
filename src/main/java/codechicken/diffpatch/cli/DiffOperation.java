@@ -48,11 +48,11 @@ public class DiffOperation extends CliOperation {
 
     @Override
     public int operate() throws IOException {
-        if (aPath.isFile() && Files.notExists(aPath.toPath())) {
+        if (aPath.getType().isPath() && Files.notExists(aPath.toPath())) {
             log("Err: File A doesn't exist.");
             return -1;
         }
-        if (aPath.isFile() && Files.notExists(bPath.toPath())) {
+        if (aPath.getType().isPath() && Files.notExists(bPath.toPath())) {
             log("Err: File B doesn't exist.");
             return -1;
         }
