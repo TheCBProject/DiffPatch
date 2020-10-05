@@ -3,6 +3,8 @@ package codechicken.diffpatch;
 import codechicken.diffpatch.cli.*;
 import codechicken.diffpatch.diff.Differ;
 import codechicken.diffpatch.match.FuzzyLineMatcher;
+import codechicken.diffpatch.util.InputPath;
+import codechicken.diffpatch.util.OutputPath;
 import codechicken.diffpatch.util.PatchMode;
 import codechicken.diffpatch.util.Utils;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
@@ -103,26 +105,63 @@ public class DiffPatch {
 
         CliOperation operation;
         if (optSet.has(doDiffOpt)) {
-            Path aPath = Paths.get(arguments.get(0));
-            Path bPath = Paths.get(arguments.get(1));
+
+            Path a = Paths.get(arguments.get(0));
+            Path b = Paths.get(arguments.get(1));
+            Path output = optSet.valueOf(outputOpt);
+
+            ArchiveFormat outputFormat = optSet.valueOf(archiveOpt);
+
+            if (outputFormat == null && output != null) {
+                outputFormat = ArchiveFormat.findFormat(output.getFileName());
+            }
+
+            InputPath aPath = new InputPath.FilePath(a, ArchiveFormat.findFormat(a.getFileName()));
+            InputPath bPath = new InputPath.FilePath(b, ArchiveFormat.findFormat(b.getFileName()));
+
+            OutputPath outputPath;
+            if (output != null) {
+                outputPath = new OutputPath.FilePath(output, outputFormat);
+            } else {
+                outputPath = new OutputPath.PipePath(pipe, outputFormat);
+            }
+
             boolean autoHeader = optSet.has(autoHeaderOpt);
             int context = optSet.valueOf(contextOpt);
-            Path outputPath = optSet.valueOf(outputOpt);
-            ArchiveFormat outputFormat = optSet.valueOf(archiveOpt);
-            operation = new CliDiffer(logger, pipe, Utils.sneakC(parser::printHelpOn), verbose, summary, aPath, bPath, autoHeader, context, outputPath, outputFormat);
+
+            operation = new DiffOperation(logger, pipe, Utils.sneakC(parser::printHelpOn), verbose, summary, aPath, bPath, autoHeader, context, outputPath);
         } else if (optSet.has(doPatchOpt)) {
-            Path basePath = Paths.get(arguments.get(0));
-            Path patchesPath = Paths.get(arguments.get(1));
-            Path outputPath = optSet.valueOf(outputOpt);
-            Path rejectsPath = optSet.valueOf(rejectOpt);
+
+            Path base = Paths.get(arguments.get(0));
+            Path patches = Paths.get(arguments.get(1));
+            Path output = optSet.valueOf(outputOpt);
+            Path rejects = optSet.valueOf(rejectOpt);
+            ArchiveFormat outputFormat = optSet.valueOf(archiveOpt);
+            ArchiveFormat rejectsFormat = optSet.valueOf(rejectArchiveOpt);
+
+            if (outputFormat == null && output != null) {
+                outputFormat = ArchiveFormat.findFormat(output.getFileName());
+            }
+
+            if (rejectsFormat == null && rejects != null) {
+                rejectsFormat = ArchiveFormat.findFormat(rejects.getFileName());
+            }
+
+            InputPath basePath = new InputPath.FilePath(base, ArchiveFormat.findFormat(base.getFileName()));
+            InputPath patchesPath = new InputPath.FilePath(patches, ArchiveFormat.findFormat(patches.getFileName()));
+            OutputPath outputPath;
+            if (output != null) {
+                outputPath = new OutputPath.FilePath(output, outputFormat);
+            } else {
+                outputPath = new OutputPath.PipePath(pipe, outputFormat);
+            }
+            OutputPath rejectsPath = new OutputPath.FilePath(rejects, rejectsFormat);
             float minFuzz = optSet.valueOf(fuzzOpt);
             int maxOffset = optSet.valueOf(offsetOpt);
             PatchMode mode = optSet.valueOf(modeOpt);
             String prefix = optSet.valueOf(patchPrefix);
 
-            ArchiveFormat outputFormat = optSet.valueOf(archiveOpt);
-            ArchiveFormat rejectsFormat = optSet.valueOf(rejectArchiveOpt);
-            operation = new CliPatcher(logger, pipe, Utils.sneakC(parser::printHelpOn), verbose, summary, basePath, patchesPath, outputPath, rejectsPath, minFuzz, maxOffset, mode, prefix, outputFormat, rejectsFormat);
+            operation = new PatchOperation(logger, Utils.sneakC(parser::printHelpOn), verbose, summary, basePath, patchesPath, outputPath, rejectsPath, minFuzz, maxOffset, mode, prefix);
         } else {
             logger.println("Expected --diff or --patch.");
             parser.printHelpOn(logger);

@@ -2,17 +2,13 @@ package codechicken.diffpatch.cli;
 
 import codechicken.diffpatch.diff.Differ;
 import codechicken.diffpatch.diff.PatienceDiffer;
-import codechicken.diffpatch.util.FileCollector;
-import codechicken.diffpatch.util.Operation;
-import codechicken.diffpatch.util.PatchFile;
-import codechicken.diffpatch.util.Utils;
-import codechicken.diffpatch.util.archiver.ArchiveFormat;
+import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,72 +27,55 @@ import static codechicken.diffpatch.util.Utils.*;
  * <p>
  * Created by covers1624 on 11/8/20.
  */
-public class CliDiffer extends CliOperation {
+public class DiffOperation extends CliOperation {
 
     private final boolean summary;
-    private final Path aPath;
-    private final Path bPath;
+    private final InputPath aPath;
+    private final InputPath bPath;
     private final boolean autoHeader;
     private final int context;
-    private final Path outputPath;
+    private final OutputPath outputPath;
 
-    private final ArchiveFormat aFormat;
-    private final ArchiveFormat bFormat;
-    private final ArchiveFormat outputFormat;
-
-    public CliDiffer(PrintStream logger, PrintStream pipe, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, Path aPath, Path bPath, boolean autoHeader, int context, Path outputPath, ArchiveFormat outputFormat) {
-        super(logger, pipe, helpCallback, verbose);
+    public DiffOperation(PrintStream logger, PrintStream pipe, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath aPath, InputPath bPath, boolean autoHeader, int context, OutputPath outputPath) {
+        super(logger, helpCallback, verbose);
         this.summary = summary;
         this.aPath = aPath;
         this.bPath = bPath;
         this.autoHeader = autoHeader;
         this.context = context;
         this.outputPath = outputPath;
-
-        if (outputFormat == null && outputPath != null) {
-            outputFormat = ArchiveFormat.findFormat(outputPath.getFileName());
-        }
-        this.aFormat = ArchiveFormat.findFormat(aPath.getFileName());
-        this.bFormat = ArchiveFormat.findFormat(bPath.getFileName());
-        this.outputFormat = outputFormat;
     }
 
     @Override
     public int operate() throws IOException {
-        if (Files.notExists(aPath)) {
+        if (aPath.isFile() && Files.notExists(aPath.toPath())) {
             log("Err: File A doesn't exist.");
             return -1;
         }
-        if (Files.notExists(bPath)) {
+        if (aPath.isFile() && Files.notExists(bPath.toPath())) {
             log("Err: File B doesn't exist.");
             return -1;
         }
 
         FileCollector patches = new FileCollector();
         DiffSummary summary = new DiffSummary();
-        if (Files.isRegularFile(aPath) && Files.isRegularFile(bPath) && aFormat == null && bFormat == null) {
-            if (outputFormat != null) {
+        if (aPath.isFile() && bPath.isFile() && aPath.getFormat() == null && bPath.getFormat() == null) {
+            if (outputPath.getFormat() != null) {
                 log("Err: Can't specify output format when diffing regular files.");
                 printHelp();
                 return -1;
             }
-            if (outputPath != null && Files.exists(outputPath) && !Files.isRegularFile(outputPath)) {
+            if (outputPath.getType().isPath() && Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
                 log("Err: Output already exists and is not a file.");
                 printHelp();
                 return -1;
             }
-            if (outputPath == null && pipe == null) {
-                log("Err: Output and pipe not specified.");
-                return -1;
-            }
-            List<String> lines = doDiff(summary, aPath.toString(), bPath.toString(), Files.readAllLines(aPath), Files.readAllLines(bPath), context, autoHeader);
+            List<String> lines = doDiff(summary, aPath.toString(), bPath.toString(), aPath.readAllLines(), bPath.readAllLines(), context, autoHeader);
             boolean changes = false;
             if (!lines.isEmpty()) {
                 changes = true;
-                if (outputPath != null) {
-                    Files.write(outputPath, lines);
-                } else {
-                    pipe.println(String.join("\n", lines) + "\n");
+                try (PrintWriter out = new PrintWriter(outputPath.open())) {
+                    out.println(String.join("\n", lines) + "\n");
                 }
             }
             if (this.summary) {
@@ -105,78 +84,76 @@ public class CliDiffer extends CliOperation {
             return changes ? 1 : 0;
         }
 
-        if (outputFormat != null) {
-            if (outputPath != null && Files.exists(outputPath) && !Files.isRegularFile(outputPath)) {
-                log("Err: Output already exists and is not a file.");
-                printHelp();
-                return -1;
+        if (outputPath.getType().isPath()) {
+            if (outputPath.getFormat() != null) {
+                if (Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
+                    log("Err: Output already exists and is not a file.");
+                    printHelp();
+                    return -1;
+                }
+            } else {
+                if (outputPath != null && Files.exists(outputPath.toPath()) && !Files.isDirectory(outputPath.toPath())) {
+                    log("Err: Output already exists and is not a directory.");
+                    printHelp();
+                    return -1;
+                }
             }
-        } else {
-            if (outputPath != null && Files.exists(outputPath) && !Files.isDirectory(outputPath)) {
-                log("Err: Output already exists and is not a directory.");
-                printHelp();
-                return -1;
-            }
-        }
-        if (outputPath == null && pipe == null) {
-            log("Err: Output and pipe not specified.");
-            return -1;
         }
 
-        if (Files.isRegularFile(aPath) && Files.isRegularFile(bPath)) {
-            if (aFormat == null) {
-                log("Err: File A is in an unknown archive format, whilst File B is: %s", bFormat);
+        if (aPath.isFile() && bPath.isFile()) {
+            if (aPath.getFormat() == null) {
+                log("Err: File A is in an unknown archive format.");
                 printHelp();
                 return -1;
             }
-            if (bFormat == null) {
-                log("Err: File B is in an unknown archive format, whilst File A is: %s", aFormat);
+            if (bPath.getFormat() == null) {
+                log("Err: File B is in an unknown archive format.");
                 printHelp();
                 return -1;
             }
 
             // Diff Archives
-            try (ArchiveReader aReader = aFormat.createReader(Files.newInputStream(aPath))) {
-                try (ArchiveReader bReader = bFormat.createReader(Files.newInputStream(bPath))) {
+            try (ArchiveReader aReader = aPath.getFormat().createReader(aPath.open())) {
+                try (ArchiveReader bReader = bPath.getFormat().createReader(bPath.open())) {
                     doDiff(patches, summary, aReader.getEntries(), bReader.getEntries(), sneakF(aReader::readLines), sneakF(bReader::readLines), context, autoHeader);
                 }
             }
-        } else if (Files.isDirectory(aPath) && Files.isDirectory(bPath)) {
+        } else if (!aPath.isFile() && !bPath.isFile()) {
             //Diff Directories
-            Map<String, Path> aIndex = indexChildren(aPath);
-            Map<String, Path> bIndex = indexChildren(bPath);
+            Map<String, Path> aIndex = indexChildren(aPath.toPath());
+            Map<String, Path> bIndex = indexChildren(bPath.toPath());
             doDiff(patches, summary, aIndex.keySet(), bIndex.keySet(), sneakF(e -> Files.readAllLines(aIndex.get(e))), sneakF(e -> Files.readAllLines(bIndex.get(e))), context, autoHeader);
         } else {
             Set<String> aIndex;
             Function<String, List<String>> aFunc;
             Set<String> bIndex;
             Function<String, List<String>> bFunc;
-            if (Files.isDirectory(aPath)) {
-                if (bFormat == null) {
+            if (!aPath.isFile()) {
+                if (bPath.getFormat() == null) {
                     log("Err: File B is in an unknown format, whilst File A is a directory.");
                     printHelp();
                     return -1;
                 }
-                Map<String, Path> pathIndex = indexChildren(aPath);
+                Map<String, Path> pathIndex = indexChildren(aPath.toPath());
                 aIndex = pathIndex.keySet();
                 aFunc = sneakF(e -> Files.readAllLines(pathIndex.get(e)));
                 //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
-                try (ArchiveReader reader = bFormat.createReader(Files.newInputStream(bPath))) {
+                try (ArchiveReader reader = bPath.getFormat().createReader(bPath.open())) {
                     bIndex = reader.getEntries();
                     bFunc = sneakF(reader::readLines);
                 }
             } else {
-                if (aFormat == null) {
+                if (aPath.getFormat() == null) {
                     log("Err: File A is in an unknown format, whilst File B is a directory.");
                     printHelp();
                     return -1;
                 }
                 //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
-                try (ArchiveReader reader = aFormat.createReader(Files.newInputStream(aPath))) {
+                try (ArchiveReader reader = aPath.getFormat().createReader(aPath.open())) {
                     aIndex = reader.getEntries();
                     aFunc = sneakF(reader::readLines);
                 }
-                Map<String, Path> pathIndex = indexChildren(bPath);
+                Map<String, Path> pathIndex = indexChildren(bPath.toPath());
                 bIndex = pathIndex.keySet();
                 bFunc = sneakF(e -> Files.readAllLines(pathIndex.get(e)));
             }
@@ -185,29 +162,25 @@ public class CliDiffer extends CliOperation {
         boolean changes = false;
         if (!patches.isEmpty()) {
             changes = true;
-            if (outputPath == null && outputFormat == null) {
-                for (List<String> lines : patches.values()) {
-                    lines.forEach(pipe::println);
+            if (outputPath.getType().isPipe() && outputPath.getFormat() == null) {
+                try (PrintWriter out = new PrintWriter(outputPath.open())) {
+                    for (List<String> lines : patches.values()) {
+                        lines.forEach(out::println);
+                    }
                 }
-            } else if (outputFormat != null) {
-                OutputStream sink;
-                if (outputPath != null) {
-                    sink = Files.newOutputStream(outputPath);
-                } else {
-                    sink = protectClose(pipe);
-                }
-                try (ArchiveWriter writer = outputFormat.createWriter(sink)) {
+            } else if (outputPath.getFormat() != null) {
+                try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
                     for (Map.Entry<String, List<String>> entry : patches.get().entrySet()) {
                         String patchFile = String.join("\n", entry.getValue()) + "\n";
                         writer.writeEntry(entry.getKey(), patchFile.getBytes(StandardCharsets.UTF_8));
                     }
                 }
             } else {
-                if (Files.exists(outputPath)) {
-                    Utils.deleteFolder(outputPath);
+                if (Files.exists(outputPath.toPath())) {
+                    Utils.deleteFolder(outputPath.toPath());
                 }
                 for (Map.Entry<String, List<String>> entry : patches.get().entrySet()) {
-                    Path path = outputPath.resolve(entry.getKey());
+                    Path path = outputPath.toPath().resolve(entry.getKey());
                     Files.write(makeParentDirs(path), entry.getValue());
                 }
             }

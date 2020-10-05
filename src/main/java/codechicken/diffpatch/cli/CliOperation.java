@@ -10,14 +10,12 @@ import java.util.function.Consumer;
 public abstract class CliOperation {
 
     protected final PrintStream logger;
-    protected final PrintStream pipe;
 
     private final Consumer<PrintStream> helpCallback;
     protected boolean verbose;
 
-    protected CliOperation(PrintStream logger, PrintStream pipe, Consumer<PrintStream> helpCallback, boolean verbose) {
+    protected CliOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose) {
         this.logger = logger;
-        this.pipe = pipe;
         this.helpCallback = helpCallback;
         this.verbose = verbose;
     }
