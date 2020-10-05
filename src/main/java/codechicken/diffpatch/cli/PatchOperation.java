@@ -2,13 +2,12 @@ package codechicken.diffpatch.cli;
 
 import codechicken.diffpatch.patch.Patcher;
 import codechicken.diffpatch.util.*;
-import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,25 +24,20 @@ import static codechicken.diffpatch.util.Utils.*;
 /**
  * Created by covers1624 on 11/8/20.
  */
-public class CliPatcher extends CliOperation {
+public class PatchOperation extends CliOperation {
 
     private final boolean summary;
-    private final Path basePath;
-    private final Path patchesPath;
-    private final Path outputPath;
-    private final Path rejectsPath;
+    private final InputPath basePath;
+    private final InputPath patchesPath;
+    private final OutputPath outputPath;
+    private final OutputPath rejectsPath;
     private final float minFuzz;
     private final int maxOffset;
     private final PatchMode mode;
     private final String patchesPrefix;
 
-    private final ArchiveFormat baseFormat;
-    private final ArchiveFormat patchesFormat;
-    private final ArchiveFormat outputFormat;
-    private final ArchiveFormat rejectsFormat;
-
-    public CliPatcher(PrintStream logger, PrintStream pipe, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, Path basePath, Path patchesPath, Path outputPath, Path rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, ArchiveFormat outputFormat, ArchiveFormat rejectsFormat) {
-        super(logger, pipe, helpCallback, verbose);
+    public PatchOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath basePath, InputPath patchesPath, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix) {
+        super(logger, helpCallback, verbose);
         this.summary = summary;
         this.basePath = basePath;
         this.patchesPath = patchesPath;
@@ -53,27 +47,15 @@ public class CliPatcher extends CliOperation {
         this.maxOffset = maxOffset;
         this.mode = mode;
         this.patchesPrefix = patchesPrefix;
-
-        if (outputFormat == null && outputPath != null) {
-            outputFormat = ArchiveFormat.findFormat(outputPath.getFileName());
-        }
-        if (rejectsFormat == null && rejectsPath != null) {
-            rejectsFormat = ArchiveFormat.findFormat(rejectsPath.getFileName());
-        }
-
-        this.baseFormat = ArchiveFormat.findFormat(basePath.getFileName());
-        this.patchesFormat = ArchiveFormat.findFormat(patchesPath.getFileName());
-        this.outputFormat = outputFormat;
-        this.rejectsFormat = rejectsFormat;
     }
 
     @Override
     public int operate() throws IOException {
-        if (Files.notExists(basePath)) {
+        if (basePath.getType().isPath() && Files.notExists(basePath.toPath())) {
             log("Err: Base file doesn't exist.");
             return -1;
         }
-        if (Files.notExists(patchesPath)) {
+        if (patchesPath.getType().isPath() && Files.notExists(patchesPath.toPath())) {
             log("Err: Patch file doesn't exist.");
             return -1;
         }
@@ -83,40 +65,47 @@ public class CliPatcher extends CliOperation {
         PatchesSummary summary = new PatchesSummary();
         boolean patchSuccess;
 
-        if (Files.isRegularFile(basePath) && Files.isRegularFile(patchesPath) && baseFormat == null && patchesFormat == null) {
-            if (outputFormat != null) {
+        if (basePath.isFile() && patchesPath.isFile() && basePath.getFormat() == null && patchesPath.getFormat() == null) {
+            if (outputPath.getFormat() != null) {
                 log("Err: Can't specify output format when patching regular file.");
                 printHelp();
                 return -1;
             }
-            if (outputPath != null && Files.exists(outputPath) && !Files.isRegularFile(outputPath)) {
-                log("Err: Output already exists and is not a file.");
-                printHelp();
-                return -1;
+            if (outputPath.getType().isPath()) {
+                Path out = outputPath.toPath();
+                if (Files.exists(out) && !Files.isRegularFile(out)) {
+                    log("Err: Output already exists and is not a file.");
+                    printHelp();
+                    return -1;
+                }
+            }
+            if (rejectsPath != null) {
+                if (rejectsPath.getFormat() != null) {
+                    log("Err: Can't specify reject format when patching regular file.");
+                    printHelp();
+                    return -1;
+                }
+                if (rejectsPath.getType().isPath()) {
+                    Path out = rejectsPath.toPath();
+                    if (Files.exists(out) && !Files.isRegularFile(out)) {
+                        log("Err: Reject already exists and is not a file.");
+                        printHelp();
+                        return -1;
+                    }
+                }
             }
 
-            if (rejectsFormat != null) {
-                log("Err: Can't specify reject format when patching regular file.");
-                printHelp();
-                return -1;
-            }
-            if (rejectsPath != null && Files.exists(rejectsPath) && !Files.isRegularFile(rejectsPath)) {
-                log("Err: Reject already exists and is not a file.");
-                printHelp();
-                return -1;
-            }
-
-            boolean success = doPatch(outputCollector, rejectCollector, summary, basePath.toString(), Files.readAllLines(basePath), patchesPath.toString(), Files.readAllLines(patchesPath), minFuzz, maxOffset, mode);
+            boolean success = doPatch(outputCollector, rejectCollector, summary, basePath.toString(), basePath.readAllLines(), patchesPath.toString(), patchesPath.readAllLines(), minFuzz, maxOffset, mode);
             List<String> output = outputCollector.getSingleFile();
             List<String> reject = rejectCollector.getSingleFile();
-            if (outputPath != null) {
-                Files.write(outputPath, output);
-            } else {
-                pipe.println(String.join("\n", output) + "\n");
+            try (PrintWriter out = new PrintWriter(outputPath.open())) {
+                out.println(String.join("\n", output) + "\n");
             }
 
             if (rejectsPath != null && !reject.isEmpty()) {
-                Files.write(rejectsPath, reject);
+                try (PrintWriter out = new PrintWriter(rejectsPath.open())) {
+                    out.println(String.join("\n", reject + "\n"));
+                }
             }
             if (this.summary) {
                 summary.print(logger, true);
@@ -124,78 +113,82 @@ public class CliPatcher extends CliOperation {
             return success ? 0 : 1;
         }
 
-        if (outputPath == null && outputFormat == null) {
-            log("Err: Output path doesnt exist and output format not specified.");
+        if (outputPath.getType().isPipe() && outputPath.getFormat() == null) {
+            log("Err: Output detected as pipe but no format is specified.");
             printHelp();
             return -1;
         }
 
-        if (outputFormat != null) {
-            if (outputPath != null && Files.exists(outputPath) && !Files.isRegularFile(outputPath)) {
-                log("Err: Output already exists and is not a file.");
-                printHelp();
-                return -1;
-            }
-        } else {
-            if (outputPath != null && Files.exists(outputPath) && !Files.isDirectory(outputPath)) {
-                log("Err: Output already exists and is not a directory.");
-                printHelp();
-                return -1;
+        if (outputPath.isFile()) {
+            Path out = outputPath.toPath();
+            if (outputPath.getFormat() == null) {
+                if (Files.exists(out) && !Files.isRegularFile(out)) {
+                    log("Err: Output already exists and is not a file.");
+                    printHelp();
+                    return -1;
+                }
+
+            } else {
+                if (Files.exists(out) && !Files.isDirectory(out)) {
+                    log("Err: Output already exists and is not a directory.");
+                    printHelp();
+                    return -1;
+                }
             }
         }
 
-        if (Files.isRegularFile(basePath) && Files.isRegularFile(patchesPath)) {
-            if (baseFormat == null) {
-                log("Err: Base file is in an unknown archive format, whilst Patches file is: %s", baseFormat);
+        if (basePath.isFile() && patchesPath.isFile()) {
+            if (basePath.getFormat() == null) {
+                log("Err: Base path is in an unknown archive format");
                 printHelp();
                 return -1;
             }
-            if (patchesFormat == null) {
-                log("Err: Patches file is in an unknown archive format, whilst Base file is: %s", patchesFormat);
+            if (patchesPath.getFormat() == null) {
+                log("Err: Patches path is in an unknown archive format");
                 printHelp();
                 return -1;
             }
 
-            try (ArchiveReader baseReader = baseFormat.createReader(Files.newInputStream(basePath))) {
-                try (ArchiveReader patchesReader = patchesFormat.createReader(Files.newInputStream(patchesPath), patchesPrefix)) {
+            try (ArchiveReader baseReader = basePath.getFormat().createReader(basePath.open())) {
+                try (ArchiveReader patchesReader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
                     patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseReader.getEntries(), patchesReader.getEntries(), sneakF(baseReader::readLines), sneakF(patchesReader::readLines), minFuzz, maxOffset, mode);
                 }
             }
         } else {
-            if (Files.isDirectory(basePath) && Files.isDirectory(patchesPath)) {
-                Map<String, Path> baseIndex = indexChildren(basePath);
-                Map<String, Path> patchIndex = indexChildren(patchesPath, patchesPrefix);
+            if (!basePath.isFile() && !patchesPath.isFile()) {
+                Map<String, Path> baseIndex = indexChildren(basePath.toPath());
+                Map<String, Path> patchIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
                 patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex.keySet(), patchIndex.keySet(), sneakF(e -> Files.readAllLines(baseIndex.get(e))), sneakF(e -> Files.readAllLines(patchIndex.get(e))), minFuzz, maxOffset, mode);
             } else {
                 Set<String> baseIndex;
                 Function<String, List<String>> baseFunc;
                 Set<String> patchIndex;
                 Function<String, List<String>> patchFunc;
-                if (Files.isDirectory(basePath)) {
-                    if (patchesFormat == null) {
+                if (!basePath.isFile()) {
+                    if (patchesPath.getFormat() == null) {
                         log("Err: Patches file is in an unknown format, whilst Base file is a directory.");
                         printHelp();
                         return -1;
                     }
-                    Map<String, Path> pathIndex = indexChildren(basePath);
+                    Map<String, Path> pathIndex = indexChildren(basePath.toPath());
                     baseIndex = pathIndex.keySet();
                     baseFunc = sneakF(e -> Files.readAllLines(pathIndex.get(e)));
                     //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
-                    try (ArchiveReader reader = patchesFormat.createReader(Files.newInputStream(patchesPath), patchesPrefix)) {
+                    try (ArchiveReader reader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
                         patchIndex = reader.getEntries();
                         patchFunc = sneakF(reader::readLines);
                     }
                 } else {
-                    if (baseFormat == null) {
+                    if (basePath.getFormat() == null) {
                         log("Err: Base file is in an unknown format, whilst Patches file is a directory.");
                         printHelp();
                         return -1;
                     }
-                    Map<String, Path> pathIndex = indexChildren(patchesPath, patchesPrefix);
+                    Map<String, Path> pathIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
                     patchIndex = pathIndex.keySet();
                     patchFunc = sneakF(e -> Files.readAllLines(pathIndex.get(e)));
                     //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
-                    try (ArchiveReader reader = baseFormat.createReader(Files.newInputStream(basePath))) {
+                    try (ArchiveReader reader = basePath.getFormat().createReader(basePath.open())) {
                         baseIndex = reader.getEntries();
                         baseFunc = sneakF(reader::readLines);
                     }
@@ -204,44 +197,37 @@ public class CliPatcher extends CliOperation {
             }
         }
 
-        if (outputFormat != null) {
-            OutputStream sink;
-            if (outputPath != null) {
-                Files.deleteIfExists(outputPath);
-                sink = Files.newOutputStream(outputPath);
-            } else {
-                sink = protectClose(pipe);
-            }
-            try (ArchiveWriter writer = outputFormat.createWriter(sink)) {
+        if (outputPath.getFormat() != null) {
+            try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
                 for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
                     String file = String.join("\n", entry.getValue()) + "\n";
                     writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
                 }
             }
         } else {
-            if (Files.exists(outputPath)) {
-                Utils.deleteFolder(outputPath);
+            if (Files.exists(outputPath.toPath())) {
+                Utils.deleteFolder(outputPath.toPath());
             }
             for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
-                Path path = outputPath.resolve(entry.getKey());
+                Path path = outputPath.toPath().resolve(entry.getKey());
                 Files.write(makeParentDirs(path), entry.getValue());
             }
         }
 
         if (rejectsPath != null) {
-            if (rejectsFormat != null) {
-                try (ArchiveWriter writer = rejectsFormat.createWriter(Files.newOutputStream(rejectsPath))) {
+            if (rejectsPath.getFormat() != null) {
+                try (ArchiveWriter writer = rejectsPath.getFormat().createWriter(rejectsPath.open())) {
                     for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
                         String file = String.join("\n", entry.getValue()) + "\n";
                         writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
                     }
                 }
             } else {
-                if (Files.exists(rejectsPath)) {
-                    Utils.deleteFolder(rejectsPath);
+                if (Files.exists(rejectsPath.toPath())) {
+                    Utils.deleteFolder(rejectsPath.toPath());
                 }
                 for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
-                    Path path = rejectsPath.resolve(entry.getKey());
+                    Path path = rejectsPath.toPath().resolve(entry.getKey());
                     Files.write(makeParentDirs(path), entry.getValue());
                 }
             }

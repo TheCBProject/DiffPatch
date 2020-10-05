@@ -79,6 +79,14 @@ public class Utils {
         return str;
     }
 
+    public static InputStream protectClose(InputStream is) {
+        return new FilterInputStream(is) {
+            @Override
+            public void close() {
+            }
+        };
+    }
+
     public static OutputStream protectClose(OutputStream os) {
         return new FilterOutputStream(os) {
             @Override
