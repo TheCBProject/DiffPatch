@@ -1,18 +1,8 @@
-buildscript {
-    repositories {
-        mavenLocal()
-        jcenter()
-        maven { url 'https://files.minecraftforge.net/maven' }
-    }
-    dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
-    }
-}
-
 plugins {
     id 'java'
     id 'maven-publish'
     id 'com.github.johnrengelman.shadow' version '5.2.0'
+    id "net.covers1624.signing" version '1.0.0.2'
 }
 
 group 'codechicken'
@@ -63,6 +53,20 @@ dependencies {
     shadow 'net.sf.jopt-simple:jopt-simple:5.0.4'
 }
 
+signing {
+    if (!signProps.empty) {
+        jars {
+            sign jar
+            sign shadowJar
+
+            keyStore = signProps.keyStore
+            alias = signProps.alias
+            storePass = signProps.storePass
+            keyPass = signProps.keyPass
+        }
+    }
+}
+
 def commonManifest = {
     attributes 'Main-Class': 'codechicken.diffpatch.DiffPatch'
 }
@@ -101,24 +105,6 @@ task srcJar(type: Jar) {
     classifier 'sources'
     from sourceSets.main.allSource
     from file("LICENSE.txt")
-}
-
-[shadowJar, jar].each { baseTask ->
-    def sTask = "sign${baseTask.name.capitalize()}"
-    baseTask.finalizedBy sTask
-    task "$sTask"(type: net.minecraftforge.gradle.common.task.SignJar) {
-        onlyIf { !signProps.isEmpty() }
-
-        if (!signProps.isEmpty()) {
-            keyStore = signProps.keyStore
-            alias = signProps.alias
-            storePass = signProps.storePass
-            keyPass = signProps.keyPass
-
-            inputFile = baseTask.archivePath
-            outputFile = baseTask.archivePath
-        }
-    }
 }
 
 publishing {
