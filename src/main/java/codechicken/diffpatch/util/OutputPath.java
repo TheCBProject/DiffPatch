@@ -88,6 +88,9 @@ public abstract class OutputPath {
 
         @Override
         public OutputStream open() throws IOException {
+            if (Files.notExists(path.getParent())) {
+                Files.createDirectories(path.getParent());
+            }
             return Files.newOutputStream(path, opts);
         }
 

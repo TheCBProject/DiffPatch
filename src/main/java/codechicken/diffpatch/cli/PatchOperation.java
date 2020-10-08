@@ -121,7 +121,7 @@ public class PatchOperation extends CliOperation {
 
         if (outputPath.isFile()) {
             Path out = outputPath.toPath();
-            if (outputPath.getFormat() == null) {
+            if (outputPath.getFormat() != null) {
                 if (Files.exists(out) && !Files.isRegularFile(out)) {
                     log("Err: Output already exists and is not a file.");
                     printHelp();
