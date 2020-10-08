@@ -237,13 +237,19 @@ public class Patcher {
         for (int i = 0; i < patch.wmContext.size(); i++) {
             match[i] = loc + i;
             //Count words in both lines.
-            countWords(patch.wmContext.get(i).toCharArray(), aWordCounts);
-            countWords(wmLines.get(i).toCharArray(), bWordCounts);
+            for (char c : patch.wmContext.get(i).toCharArray()) {
+                aWordCounts[c]++;
+            }
+            for (char c : wmLines.get(i).toCharArray()) {
+                bWordCounts[c]++;
+            }
         }
 
         //Ensure only the allowed words change in counts.
-        if (!matchCounts(aWordCounts, bWordCounts)) {
-            return false;
+        for (int i = 0; i < aWordCounts.length; i++) {
+            if (aWordCounts[i] != bWordCounts[i] && !ACCESS_WORDS.contains(charRep.getWordForChar((char) i))) {
+                return false;
+            }
         }
 
         WorkingPatch fuzzyPatch = new WorkingPatch(adjustPatchToMatchedLines(patch, match, lines));
@@ -255,21 +261,6 @@ public class Patcher {
         }
 
         patch.succeed(PatchMode.ACCESS, applyExactAt(loc, fuzzyPatch));
-        return true;
-    }
-
-    private void countWords(char[] chars, int[] wordCounts) {
-        for (char c : chars) {
-            wordCounts[c] = wordCounts[c] + 1;
-        }
-    }
-
-    private boolean matchCounts(int[] a, int[] b) {
-        for (int i = 0; i < a.length; i++) {
-            if (a[i] != b[i] && !ACCESS_WORDS.contains(charRep.getWordForChar((char) i))) {
-                return false;
-            }
-        }
         return true;
     }
 
