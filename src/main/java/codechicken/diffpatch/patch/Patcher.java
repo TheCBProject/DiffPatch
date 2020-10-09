@@ -253,9 +253,7 @@ public class Patcher {
         }
 
         WorkingPatch fuzzyPatch = new WorkingPatch(adjustPatchToMatchedLines(patch, match, lines));
-        if (wmLines != null) {
-            fuzzyPatch.wordsToChars(charRep);
-        }
+        fuzzyPatch.wordsToChars(charRep);
         if (lmText != null) {
             fuzzyPatch.linesToChars(charRep);
         }
