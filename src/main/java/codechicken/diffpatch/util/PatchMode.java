@@ -5,6 +5,7 @@ package codechicken.diffpatch.util;
  */
 public enum PatchMode {
     EXACT,
+    ACCESS,
     OFFSET,
     FUZZY;
 }

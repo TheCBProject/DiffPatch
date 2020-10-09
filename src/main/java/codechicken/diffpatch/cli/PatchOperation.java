@@ -290,6 +290,10 @@ public class PatchOperation extends CliOperation {
                         summary.exactMatches++;
                         summary.overallQuality += 100;
                         break;
+                    case ACCESS:
+                        summary.accessMatches++;
+                        summary.overallQuality += 100;
+                        break;
                     case OFFSET:
                         summary.offsetMatches++;
                         summary.overallQuality += 100;
@@ -331,6 +335,7 @@ public class PatchOperation extends CliOperation {
         public int missingFiles;
         public int failedMatches;
         public int exactMatches;
+        public int accessMatches;
         public int offsetMatches;
         public int fuzzyMatches;
 
@@ -346,10 +351,11 @@ public class PatchOperation extends CliOperation {
             logger.println();
             logger.println(" Failed matches:   " + failedMatches);
             logger.println(" Exact matches:    " + exactMatches);
+            logger.println(" Access matches:   " + accessMatches);
             logger.println(" Offset matches:   " + offsetMatches);
             logger.println(" Fuzzy matches:    " + fuzzyMatches);
 
-            logger.println(String.format("Overall Quality   %.2f%%", overallQuality / (failedMatches + exactMatches + offsetMatches + fuzzyMatches)));
+            logger.println(String.format("Overall Quality   %.2f%%", overallQuality / (failedMatches + exactMatches + accessMatches + offsetMatches + fuzzyMatches)));
         }
     }
 }

@@ -28,6 +28,10 @@ public class CharRepresenter {
         }
     }
 
+    public String getWordForChar(char ch) {
+        return charToWord.get(ch);
+    }
+
     public char addLine(String line) {
         return lineToChar.computeCharIfAbsent(line, e -> {
             charToLine.add(line);
@@ -90,7 +94,7 @@ public class CharRepresenter {
     }
 
     public int getMaxWordChar() {
-        return wordToChar.size();
+        return charToWord.size();
     }
 
 }

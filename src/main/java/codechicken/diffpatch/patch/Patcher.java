@@ -12,6 +12,8 @@ import java.util.stream.Stream;
 
 public class Patcher {
 
+    private static final List<String> ACCESS_WORDS = Arrays.asList("public", "protected", "private", "final", " ", "\t");
+
     public final List<WorkingPatch> patches;
     public List<String> lines;
     private boolean applied;
@@ -59,6 +61,9 @@ public class Patcher {
 
         for (WorkingPatch patch : patches) {
             if (applyExact(patch)) {
+                continue;
+            }
+            if (mode.ordinal() >= PatchMode.ACCESS.ordinal() && applyAccess(patch)) {
                 continue;
             }
             if (mode.ordinal() >= PatchMode.OFFSET.ordinal() && applyOffset(patch)) {
@@ -205,6 +210,55 @@ public class Patcher {
         patch.succeed(PatchMode.OFFSET, applyExactAt(found, patch));
         patch.addOffsetResult(found - loc, lines.size());
 
+        return true;
+    }
+
+    private boolean applyAccess(WorkingPatch patch) {
+        if (wmLines == null) {
+            wordsToChars();
+        }
+
+        int loc = patch.start2 + searchOffset;
+        if (loc + patch.length1 > lines.size()) {
+            return false;
+        }
+
+        List<String> wmLines = this.wmLines.subList(loc, loc + patch.length1);
+
+        if (patch.wmContext.size() != wmLines.size()) {
+            return false;
+        }
+
+        int[] aWordCounts = new int[charRep.getMaxWordChar()];
+        int[] bWordCounts = new int[charRep.getMaxWordChar()];
+
+        int[] match = new int[patch.wmContext.size()];
+
+        for (int i = 0; i < patch.wmContext.size(); i++) {
+            match[i] = loc + i;
+            //Count words in both lines.
+            for (char c : patch.wmContext.get(i).toCharArray()) {
+                aWordCounts[c]++;
+            }
+            for (char c : wmLines.get(i).toCharArray()) {
+                bWordCounts[c]++;
+            }
+        }
+
+        //Ensure only the allowed words change in counts.
+        for (int i = 0; i < aWordCounts.length; i++) {
+            if (aWordCounts[i] != bWordCounts[i] && !ACCESS_WORDS.contains(charRep.getWordForChar((char) i))) {
+                return false;
+            }
+        }
+
+        WorkingPatch fuzzyPatch = new WorkingPatch(adjustPatchToMatchedLines(patch, match, lines));
+        fuzzyPatch.wordsToChars(charRep);
+        if (lmText != null) {
+            fuzzyPatch.linesToChars(charRep);
+        }
+
+        patch.succeed(PatchMode.ACCESS, applyExactAt(loc, fuzzyPatch));
         return true;
     }
 
@@ -482,6 +536,10 @@ public class Patcher {
         public String summary() {
             if (!success) {
                 return "FAILURE: " + patch.getHeader();
+            }
+
+            if (mode == PatchMode.ACCESS) {
+                return "ACCESS: " + patch.getHeader();
             }
 
             if (mode == PatchMode.OFFSET) {
