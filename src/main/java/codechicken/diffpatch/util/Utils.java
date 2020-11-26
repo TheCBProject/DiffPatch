@@ -189,7 +189,7 @@ public class Utils {
         try (Stream<Path> stream = Files.walk(toIndex)) {
             Path finalToIndex = toIndex;
             return stream.filter(Files::isRegularFile)//
-                    .collect(Collectors.toMap(e -> stripStart('/', finalToIndex.relativize(e).toString()), Function.identity()));
+                    .collect(Collectors.toMap(e -> stripStart('/', finalToIndex.relativize(e).toString().replace("\\", "/")), Function.identity()));
         }
     }
 
