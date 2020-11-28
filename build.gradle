@@ -7,7 +7,7 @@ plugins {
 
 group 'codechicken'
 archivesBaseName = 'DiffPatch'
-version '1.2.0'
+version '1.2.1'
 
 targetCompatibility = "1.8"
 sourceCompatibility = "1.8"
@@ -40,9 +40,15 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    create('gradle')
+    main
+}
+
 configurations {
     shadow
     implementation.extendsFrom shadow
+    gradleImplementation.extendsFrom implementation
 }
 
 dependencies {
@@ -51,6 +57,8 @@ dependencies {
     shadow 'org.apache.commons:commons-compress:1.18'
     shadow 'org.tukaani:xz:1.8'
     shadow 'net.sf.jopt-simple:jopt-simple:5.0.4'
+    gradleImplementation sourceSets.main.output
+    gradleCompileOnly gradleApi()
 }
 
 signing {
@@ -74,6 +82,7 @@ def commonManifest = {
 jar {
     manifest commonManifest
     from file("LICENSE.txt")
+    from sourceSets.gradle.output
 }
 
 shadowJar {
@@ -83,6 +92,7 @@ shadowJar {
 
     //Include license, exclude java9 and maven things.
     from file("LICENSE.txt")
+    from sourceSets.gradle.output
     exclude 'META-INF/maven/**'
     exclude 'module-info.class'
 

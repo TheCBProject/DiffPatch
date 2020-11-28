@@ -103,7 +103,7 @@ public class DiffPatch {
             return -1;
         }
 
-        CliOperation operation;
+        CliOperation<?> operation;
         if (optSet.has(doDiffOpt)) {
 
             Path a = Paths.get(arguments.get(0));
@@ -116,9 +116,6 @@ public class DiffPatch {
                 outputFormat = ArchiveFormat.findFormat(output.getFileName());
             }
 
-            InputPath aPath = new InputPath.FilePath(a, ArchiveFormat.findFormat(a.getFileName()));
-            InputPath bPath = new InputPath.FilePath(b, ArchiveFormat.findFormat(b.getFileName()));
-
             OutputPath outputPath;
             if (output != null) {
                 outputPath = new OutputPath.FilePath(output, outputFormat);
@@ -126,10 +123,17 @@ public class DiffPatch {
                 outputPath = new OutputPath.PipePath(pipe, outputFormat);
             }
 
-            boolean autoHeader = optSet.has(autoHeaderOpt);
-            int context = optSet.valueOf(contextOpt);
-
-            operation = new DiffOperation(logger, pipe, Utils.sneakC(parser::printHelpOn), verbose, summary, aPath, bPath, autoHeader, context, outputPath);
+            operation = DiffOperation.builder()
+                    .logTo(logger)
+                    .helpCallback(Utils.sneakC(parser::printHelpOn))
+                    .aPath(a, ArchiveFormat.findFormat(a.getFileName()))
+                    .bPath(b, ArchiveFormat.findFormat(b.getFileName()))
+                    .outputPath(outputPath)
+                    .verbose(verbose)
+                    .summary(summary)
+                    .autoHeader(optSet.has(autoHeaderOpt))
+                    .context(optSet.valueOf(contextOpt))
+                    .build();
         } else if (optSet.has(doPatchOpt)) {
 
             Path base = Paths.get(arguments.get(0));
@@ -156,17 +160,26 @@ public class DiffPatch {
                 outputPath = new OutputPath.PipePath(pipe, outputFormat);
             }
             OutputPath rejectsPath = new OutputPath.FilePath(rejects, rejectsFormat);
-            float minFuzz = optSet.valueOf(fuzzOpt);
-            int maxOffset = optSet.valueOf(offsetOpt);
-            PatchMode mode = optSet.valueOf(modeOpt);
-            String prefix = optSet.valueOf(patchPrefix);
 
-            operation = new PatchOperation(logger, Utils.sneakC(parser::printHelpOn), verbose, summary, basePath, patchesPath, outputPath, rejectsPath, minFuzz, maxOffset, mode, prefix);
+            operation = PatchOperation.builder()
+                    .logTo(logger)
+                    .helpCallback(Utils.sneakC(parser::printHelpOn))
+                    .verbose(verbose)
+                    .summary(summary)
+                    .basePath(basePath)
+                    .patchesPath(patchesPath)
+                    .outputPath(outputPath)
+                    .rejectsPath(rejectsPath)
+                    .minFuzz(optSet.valueOf(fuzzOpt))
+                    .maxOffset(optSet.valueOf(offsetOpt))
+                    .mode(optSet.valueOf(modeOpt))
+                    .patchesPrefix(optSet.valueOf(patchPrefix))
+                    .build();
         } else {
             logger.println("Expected --diff or --patch.");
             parser.printHelpOn(logger);
             return -1;
         }
-        return operation.operate();
+        return operation.operate().exit;
     }
 }

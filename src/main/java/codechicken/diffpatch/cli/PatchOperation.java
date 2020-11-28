@@ -1,20 +1,17 @@
 package codechicken.diffpatch.cli;
 
+import codechicken.diffpatch.match.FuzzyLineMatcher;
 import codechicken.diffpatch.patch.Patcher;
 import codechicken.diffpatch.util.*;
+import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,7 +21,7 @@ import static codechicken.diffpatch.util.Utils.*;
 /**
  * Created by covers1624 on 11/8/20.
  */
-public class PatchOperation extends CliOperation {
+public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> {
 
     private final boolean summary;
     private final InputPath basePath;
@@ -49,15 +46,19 @@ public class PatchOperation extends CliOperation {
         this.patchesPrefix = patchesPrefix;
     }
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     @Override
-    public int operate() throws IOException {
-        if (basePath.getType().isPath() && Files.notExists(basePath.toPath())) {
+    public Result<PatchesSummary> operate() throws IOException {
+        if (!basePath.exists()) {
             log("Err: Base file doesn't exist.");
-            return -1;
+            return new Result<>(-1);
         }
-        if (patchesPath.getType().isPath() && Files.notExists(patchesPath.toPath())) {
+        if (!patchesPath.exists()) {
             log("Err: Patch file doesn't exist.");
-            return -1;
+            return new Result<>(-1);
         }
 
         FileCollector outputCollector = new FileCollector();
@@ -65,32 +66,33 @@ public class PatchOperation extends CliOperation {
         PatchesSummary summary = new PatchesSummary();
         boolean patchSuccess;
 
+        //Base path and patch path are both singular files.
         if (basePath.isFile() && patchesPath.isFile() && basePath.getFormat() == null && patchesPath.getFormat() == null) {
             if (outputPath.getFormat() != null) {
                 log("Err: Can't specify output format when patching regular file.");
                 printHelp();
-                return -1;
+                return new Result<>(-1);
             }
             if (outputPath.getType().isPath()) {
                 Path out = outputPath.toPath();
                 if (Files.exists(out) && !Files.isRegularFile(out)) {
                     log("Err: Output already exists and is not a file.");
                     printHelp();
-                    return -1;
+                    return new Result<>(-1);
                 }
             }
-            if (rejectsPath != null) {
+            if (rejectsPath.exists()) {
                 if (rejectsPath.getFormat() != null) {
                     log("Err: Can't specify reject format when patching regular file.");
                     printHelp();
-                    return -1;
+                    return new Result<>(-1);
                 }
                 if (rejectsPath.getType().isPath()) {
                     Path out = rejectsPath.toPath();
                     if (Files.exists(out) && !Files.isRegularFile(out)) {
                         log("Err: Reject already exists and is not a file.");
                         printHelp();
-                        return -1;
+                        return new Result<>(-1);
                     }
                 }
             }
@@ -102,7 +104,7 @@ public class PatchOperation extends CliOperation {
                 out.println(String.join("\n", output) + "\n");
             }
 
-            if (rejectsPath != null && !reject.isEmpty()) {
+            if (rejectsPath.exists() && !reject.isEmpty()) {
                 try (PrintWriter out = new PrintWriter(rejectsPath.open())) {
                     out.println(String.join("\n", reject + "\n"));
                 }
@@ -110,13 +112,13 @@ public class PatchOperation extends CliOperation {
             if (this.summary) {
                 summary.print(logger, true);
             }
-            return success ? 0 : 1;
+            return new Result<>(success ? 0 : 1, summary);
         }
 
         if (outputPath.getType().isPipe() && outputPath.getFormat() == null) {
             log("Err: Output detected as pipe but no format is specified.");
             printHelp();
-            return -1;
+            return new Result<>(-1);
         }
 
         if (outputPath.isFile()) {
@@ -125,28 +127,29 @@ public class PatchOperation extends CliOperation {
                 if (Files.exists(out) && !Files.isRegularFile(out)) {
                     log("Err: Output already exists and is not a file.");
                     printHelp();
-                    return -1;
+                    return new Result<>(-1);
                 }
 
             } else {
                 if (Files.exists(out) && !Files.isDirectory(out)) {
                     log("Err: Output already exists and is not a directory.");
                     printHelp();
-                    return -1;
+                    return new Result<>(-1);
                 }
             }
         }
 
+        //Both inputs are still files, both must be archives.
         if (basePath.isFile() && patchesPath.isFile()) {
             if (basePath.getFormat() == null) {
                 log("Err: Base path is in an unknown archive format");
                 printHelp();
-                return -1;
+                return new Result<>(-1);
             }
             if (patchesPath.getFormat() == null) {
                 log("Err: Patches path is in an unknown archive format");
                 printHelp();
-                return -1;
+                return new Result<>(-1);
             }
 
             try (ArchiveReader baseReader = basePath.getFormat().createReader(basePath.open())) {
@@ -155,11 +158,13 @@ public class PatchOperation extends CliOperation {
                 }
             }
         } else {
+            //Both inputs are directories.
             if (!basePath.isFile() && !patchesPath.isFile()) {
                 Map<String, Path> baseIndex = indexChildren(basePath.toPath());
                 Map<String, Path> patchIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
                 patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex.keySet(), patchIndex.keySet(), sneakF(e -> Files.readAllLines(baseIndex.get(e))), sneakF(e -> Files.readAllLines(patchIndex.get(e))), minFuzz, maxOffset, mode);
             } else {
+                //One input is a directory, the other is a file.
                 Set<String> baseIndex;
                 Function<String, List<String>> baseFunc;
                 Set<String> patchIndex;
@@ -168,7 +173,7 @@ public class PatchOperation extends CliOperation {
                     if (patchesPath.getFormat() == null) {
                         log("Err: Patches file is in an unknown format, whilst Base file is a directory.");
                         printHelp();
-                        return -1;
+                        return new Result<>(-1);
                     }
                     Map<String, Path> pathIndex = indexChildren(basePath.toPath());
                     baseIndex = pathIndex.keySet();
@@ -182,7 +187,7 @@ public class PatchOperation extends CliOperation {
                     if (basePath.getFormat() == null) {
                         log("Err: Base file is in an unknown format, whilst Patches file is a directory.");
                         printHelp();
-                        return -1;
+                        return new Result<>(-1);
                     }
                     Map<String, Path> pathIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
                     patchIndex = pathIndex.keySet();
@@ -214,7 +219,7 @@ public class PatchOperation extends CliOperation {
             }
         }
 
-        if (rejectsPath != null) {
+        if (rejectsPath.exists()) {
             if (rejectsPath.getFormat() != null) {
                 try (ArchiveWriter writer = rejectsPath.getFormat().createWriter(rejectsPath.open())) {
                     for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
@@ -235,7 +240,7 @@ public class PatchOperation extends CliOperation {
         if (this.summary) {
             summary.print(logger, false);
         }
-        return patchSuccess ? 0 : 1;
+        return new Result<>(patchSuccess ? 0 : 1, summary);
     }
 
     public boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, List<String>> bFunc, Function<String, List<String>> pFunc, float minFuzz, int maxOffset, PatchMode mode) {
@@ -328,7 +333,7 @@ public class PatchOperation extends CliOperation {
         return true;
     }
 
-    private static class PatchesSummary {
+    public static class PatchesSummary {
 
         public int unchangedFiles;
         public int changedFiles;
@@ -357,5 +362,155 @@ public class PatchOperation extends CliOperation {
 
             logger.println(String.format("Overall Quality   %.2f%%", overallQuality / (failedMatches + exactMatches + accessMatches + offsetMatches + fuzzyMatches)));
         }
+    }
+
+    public static class Builder {
+
+        private static final Consumer<PrintStream> NULL_CALLBACK = e -> {};
+        private static final PrintStream NULL_STREAM = new PrintStream(NullOutputStream.INSTANCE);
+
+        private PrintStream logger = NULL_STREAM;
+        private Consumer<PrintStream> helpCallback = NULL_CALLBACK;
+        private boolean verbose;
+        private boolean summary;
+        private InputPath basePath;
+        private InputPath patchesPath;
+        private OutputPath outputPath;
+        private OutputPath rejectsPath = OutputPath.NullPath.INSTANCE;
+        private float minFuzz = FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE;
+        private int maxOffset = FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET;
+        private PatchMode mode = PatchMode.EXACT;
+        private String patchesPrefix = "";
+
+        private Builder() {
+        }
+
+        public Builder logTo(PrintStream logger) {
+            this.logger = Objects.requireNonNull(logger);
+            return this;
+        }
+
+        public Builder logTo(OutputStream logger) {
+            return logTo(new PrintStream(logger));
+        }
+
+        public Builder helpCallback(Consumer<PrintStream> helpCallback) {
+            this.helpCallback = Objects.requireNonNull(helpCallback);
+            return this;
+        }
+
+        public Builder verbose(boolean verbose) {
+            this.verbose = verbose;
+            return this;
+        }
+
+        public Builder summary(boolean summary) {
+            this.summary = summary;
+            return this;
+        }
+
+        public Builder basePath(InputPath basePath) {
+            this.basePath = Objects.requireNonNull(basePath);
+            return this;
+        }
+
+        public Builder basePath(Path basePath) {
+            return basePath(basePath, ArchiveFormat.findFormat(basePath.getFileName()));
+        }
+
+        public Builder basePath(Path basePath, ArchiveFormat format) {
+            return basePath(new InputPath.FilePath(Objects.requireNonNull(basePath), format));
+        }
+
+        public Builder basePath(byte[] basePath, ArchiveFormat format) {
+            InputStream is = new ByteArrayInputStream(Objects.requireNonNull(basePath));
+            return basePath(new InputPath.PipePath(is, Objects.requireNonNull(format)));
+        }
+
+        public Builder patchesPath(InputPath patchesPath) {
+            this.patchesPath = Objects.requireNonNull(patchesPath);
+            return this;
+        }
+
+        public Builder patchesPath(Path patchesPath) {
+            return patchesPath(patchesPath, ArchiveFormat.findFormat(patchesPath.getFileName()));
+        }
+
+        public Builder patchesPath(Path patchesPath, ArchiveFormat format) {
+            return patchesPath(new InputPath.FilePath(Objects.requireNonNull(patchesPath), format));
+        }
+
+        public Builder patchesPath(byte[] patchesPath, ArchiveFormat format) {
+            InputStream is = new ByteArrayInputStream(Objects.requireNonNull(patchesPath));
+            return patchesPath(new InputPath.PipePath(is, Objects.requireNonNull(format)));
+        }
+
+        public Builder outputPath(OutputPath outputPath) {
+            this.outputPath = Objects.requireNonNull(outputPath);
+            return this;
+        }
+
+        public Builder outputPath(Path output) {
+            return outputPath(output, ArchiveFormat.findFormat(output.getFileName()));
+        }
+
+        public Builder outputPath(Path output, ArchiveFormat format) {
+            return outputPath(new OutputPath.FilePath(Objects.requireNonNull(output), format));
+        }
+
+        public Builder outputPath(OutputStream output, ArchiveFormat format) {
+            return outputPath(new OutputPath.PipePath(Objects.requireNonNull(output), Objects.requireNonNull(format)));
+        }
+
+        public Builder rejectsPath(OutputPath rejectsPath) {
+            this.rejectsPath = Objects.requireNonNull(rejectsPath);
+            return this;
+        }
+
+        public Builder rejectsPath(Path rejects) {
+            return rejectsPath(rejects, ArchiveFormat.findFormat(rejects.getFileName()));
+        }
+
+        public Builder rejectsPath(Path rejects, ArchiveFormat format) {
+            return rejectsPath(new OutputPath.FilePath(Objects.requireNonNull(rejects), format));
+        }
+
+        public Builder rejectsPath(OutputStream rejects, ArchiveFormat format) {
+            return rejectsPath(new OutputPath.PipePath(Objects.requireNonNull(rejects), Objects.requireNonNull(format)));
+        }
+
+        public Builder minFuzz(float minFuzz) {
+            this.minFuzz = minFuzz;
+            return this;
+        }
+
+        public Builder maxOffset(int maxOffset) {
+            this.maxOffset = maxOffset;
+            return this;
+        }
+
+        public Builder mode(PatchMode mode) {
+            this.mode = Objects.requireNonNull(mode);
+            return this;
+        }
+
+        public Builder patchesPrefix(String patchesPrefix) {
+            this.patchesPrefix = Objects.requireNonNull(patchesPrefix);
+            return this;
+        }
+
+        public PatchOperation build() {
+            if (basePath == null) {
+                throw new IllegalStateException("basePath not set.");
+            }
+            if (patchesPath == null) {
+                throw new IllegalStateException("patchesPath not set.");
+            }
+            if (outputPath == null) {
+                throw new IllegalStateException("output not set.");
+            }
+            return new PatchOperation(logger, helpCallback, verbose, summary, basePath, patchesPath, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix);
+        }
+
     }
 }

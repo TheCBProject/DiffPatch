@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 /**
  * Created by covers1624 on 11/8/20.
  */
-public abstract class CliOperation {
+public abstract class CliOperation<T> {
 
     protected final PrintStream logger;
 
@@ -20,7 +20,7 @@ public abstract class CliOperation {
         this.verbose = verbose;
     }
 
-    public abstract int operate() throws IOException;
+    public abstract Result<T> operate() throws IOException;
 
     public final void printHelp() throws IOException {
         helpCallback.accept(logger);
@@ -33,6 +33,27 @@ public abstract class CliOperation {
     public final void verbose(String str, Object... args) {
         if (verbose) {
             log(str, args);
+        }
+    }
+
+    public static class Result<T> {
+
+        public final int exit;
+        public final T summary;
+
+        public Result(int exit) {
+            this(exit, null);
+        }
+
+        public Result(int exit, T summary) {
+            this.exit = exit;
+            this.summary = summary;
+        }
+
+        public void throwOnError() {
+            if (exit != 0) {
+                throw new RuntimeException("Operation has non zero exit code: " + exit);
+            }
         }
     }
 

@@ -39,6 +39,13 @@ public abstract class OutputPath {
     public abstract boolean isFile();
 
     /**
+     * Gets if this output exists or not.
+     *
+     * @return If this output exists.
+     */
+    public abstract boolean exists();
+
+    /**
      * Gets the underlying path representing this output.
      * Unsupported for {@link PathType#PIPE}
      *
@@ -79,6 +86,11 @@ public abstract class OutputPath {
         @Override
         public boolean isFile() {
             return Files.isRegularFile(path);
+        }
+
+        @Override
+        public boolean exists() {
+            return Files.exists(path);
         }
 
         @Override
@@ -132,6 +144,11 @@ public abstract class OutputPath {
         }
 
         @Override
+        public boolean exists() {
+            return true;
+        }
+
+        @Override
         public Path toPath() {
             throw new UnsupportedOperationException();
         }
@@ -141,5 +158,18 @@ public abstract class OutputPath {
             throw new UnsupportedOperationException();
         }
     }
+
+    //@formatter:off
+    public static class NullPath extends OutputPath {
+        public static final NullPath INSTANCE = new NullPath();
+        public NullPath() { super(PathType.NULL); }
+        @Override public boolean isFile() { return false; }
+        @Override public boolean exists() { return false; }
+        @Override public Path toPath() { throw new UnsupportedOperationException(); }
+        @Override public OutputStream open() { throw new UnsupportedOperationException(); }
+        @Override public String getName() { throw new UnsupportedOperationException(); }
+        @Override public ArchiveFormat getFormat() { throw new UnsupportedOperationException(); }
+    }
+    //@formatter:on
 
 }

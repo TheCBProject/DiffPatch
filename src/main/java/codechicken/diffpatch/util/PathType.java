@@ -5,7 +5,8 @@ package codechicken.diffpatch.util;
  */
 public enum PathType {
     PIPE,
-    PATH;
+    PATH,
+    NULL;
 
     public boolean isPipe() {
         return this == PIPE;
@@ -13,5 +14,9 @@ public enum PathType {
 
     public boolean isPath() {
         return this == PATH;
+    }
+
+    public boolean isNull() {
+        return this == NULL;
     }
 }
