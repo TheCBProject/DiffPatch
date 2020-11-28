@@ -78,7 +78,7 @@ public abstract class OutputPath {
 
         public FilePath(Path path, ArchiveFormat format, OpenOption... opts) {
             super(PathType.PATH);
-            this.path = path;
+            this.path = path.toAbsolutePath();
             this.format = format;
             this.opts = opts;
         }

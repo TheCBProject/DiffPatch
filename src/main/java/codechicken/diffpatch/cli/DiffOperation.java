@@ -6,6 +6,7 @@ import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -27,15 +28,19 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     private final boolean summary;
     private final InputPath aPath;
     private final InputPath bPath;
+    private final String aPrefix;
+    private final String bPrefix;
     private final boolean autoHeader;
     private final int context;
     private final OutputPath outputPath;
 
-    public DiffOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath aPath, InputPath bPath, boolean autoHeader, int context, OutputPath outputPath) {
+    public DiffOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath aPath, InputPath bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, OutputPath outputPath) {
         super(logger, helpCallback, verbose);
         this.summary = summary;
         this.aPath = aPath;
         this.bPath = bPath;
+        this.aPrefix = aPrefix;
+        this.bPrefix = bPrefix;
         this.autoHeader = autoHeader;
         this.context = context;
         this.outputPath = outputPath;
@@ -51,7 +56,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             log("Err: File A doesn't exist.");
             return new Result<>(-1);
         }
-        if (bPath.exists()) {
+        if (!bPath.exists()) {
             log("Err: File B doesn't exist.");
             return new Result<>(-1);
         }
@@ -197,9 +202,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         List<String> added = bEntries.stream().filter(e -> !aEntries.contains(e)).sorted().collect(Collectors.toList());
         List<String> common = aEntries.stream().filter(bEntries::contains).sorted().collect(Collectors.toList());
         List<String> removed = aEntries.stream().filter(e -> !bEntries.contains(e)).sorted().collect(Collectors.toList());
+        String aPrefix = StringUtils.appendIfMissing(StringUtils.isEmpty(this.aPrefix) ? "a" : this.aPrefix, "/");
+        String bPrefix = StringUtils.appendIfMissing(StringUtils.isEmpty(this.bPrefix) ? "b" : this.bPrefix, "/");
         for (String file : added) {
             try {
-                String bName = 'b' + ensureStartsWith('/', file);
+                String bName = bPrefix + StringUtils.removeStart(file, "/");
                 List<String> aLines = Collections.emptyList();
                 List<String> bLines = bFunc.apply(file);
                 List<String> patchLines = doDiff(summary, null, bName, aLines, bLines, context, autoHeader);
@@ -215,8 +222,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         }
         for (String file : common) {
             try {
-                String aName = 'a' + ensureStartsWith('/', file);
-                String bName = 'b' + ensureStartsWith('/', file);
+                String aName = aPrefix + StringUtils.removeStart(file, "/");
+                String bName = bPrefix + StringUtils.removeStart(file, "/");
                 List<String> aLines = aFunc.apply(file);
                 List<String> bLines = bFunc.apply(file);
                 List<String> patchLines = doDiff(summary, aName, bName, aLines, bLines, context, autoHeader);
@@ -232,7 +239,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         }
         for (String file : removed) {
             try {
-                String aName = 'a' + ensureStartsWith('/', file);
+                String aName = aPrefix + StringUtils.removeStart(file, "/");
                 List<String> aLines = aFunc.apply(file);
                 List<String> bLines = Collections.emptyList();
                 List<String> patchLines = doDiff(summary, aName, null, aLines, bLines, context, autoHeader);
@@ -329,6 +336,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         private boolean autoHeader;
         private int context = Differ.DEFAULT_CONTEXT;
         private OutputPath outputPath;
+        private String aPrefix = "a/";
+        private String bPrefix = "b/";
 
         private Builder() {
         }
@@ -386,6 +395,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return this;
         }
 
+        public Builder aPrefix(String aPrefix) {
+            this.aPrefix = aPrefix;
+            return this;
+        }
+
         public Builder bPath(Path bPath) {
             return bPath(bPath, ArchiveFormat.findFormat(bPath.getFileName()));
         }
@@ -397,6 +411,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         public Builder bPath(byte[] bPath, ArchiveFormat format) {
             InputStream is = new ByteArrayInputStream(Objects.requireNonNull(bPath));
             return bPath(new InputPath.PipePath(is, Objects.requireNonNull(format)));
+        }
+
+        public Builder bPrefix(String bPrefix) {
+            this.bPrefix = bPrefix;
+            return this;
         }
 
         public Builder autoHeader(boolean autoHeader) {
@@ -436,7 +455,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             if (outputPath == null) {
                 throw new IllegalStateException("output not set.");
             }
-            return new DiffOperation(logger, helpCallback, verbose, summary, aPath, bPath, autoHeader, context, outputPath);
+            return new DiffOperation(logger, helpCallback, verbose, summary, aPath, bPath, aPrefix, bPrefix, autoHeader, context, outputPath);
         }
 
     }

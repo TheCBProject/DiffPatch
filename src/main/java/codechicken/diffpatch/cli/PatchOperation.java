@@ -26,6 +26,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     private final boolean summary;
     private final InputPath basePath;
     private final InputPath patchesPath;
+    private final String aPrefix;
+    private final String bPrefix;
     private final OutputPath outputPath;
     private final OutputPath rejectsPath;
     private final float minFuzz;
@@ -33,11 +35,13 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     private final PatchMode mode;
     private final String patchesPrefix;
 
-    public PatchOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath basePath, InputPath patchesPath, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix) {
+    public PatchOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix) {
         super(logger, helpCallback, verbose);
         this.summary = summary;
         this.basePath = basePath;
         this.patchesPath = patchesPath;
+        this.aPrefix = aPrefix;
+        this.bPrefix = bPrefix;
         this.outputPath = outputPath;
         this.rejectsPath = rejectsPath;
         this.minFuzz = minFuzz;
@@ -382,6 +386,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private PatchMode mode = PatchMode.EXACT;
         private String patchesPrefix = "";
 
+        private String aPrefix = "a/";
+        private String bPrefix = "b/";
+
         private Builder() {
         }
 
@@ -443,6 +450,16 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         public Builder patchesPath(byte[] patchesPath, ArchiveFormat format) {
             InputStream is = new ByteArrayInputStream(Objects.requireNonNull(patchesPath));
             return patchesPath(new InputPath.PipePath(is, Objects.requireNonNull(format)));
+        }
+
+        public Builder aPrefix(String aPrefix) {
+            this.aPrefix = aPrefix;
+            return this;
+        }
+
+        public Builder bPrefix(String bPrefix) {
+            this.bPrefix = bPrefix;
+            return this;
         }
 
         public Builder outputPath(OutputPath outputPath) {
@@ -509,7 +526,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (outputPath == null) {
                 throw new IllegalStateException("output not set.");
             }
-            return new PatchOperation(logger, helpCallback, verbose, summary, basePath, patchesPath, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix);
+            return new PatchOperation(logger, helpCallback, verbose, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix);
         }
 
     }
