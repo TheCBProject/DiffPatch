@@ -6,6 +6,7 @@ import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -101,7 +102,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 }
             }
 
-            boolean success = doPatch(outputCollector, rejectCollector, summary, basePath.toString(), basePath.readAllLines(), patchesPath.toString(), patchesPath.readAllLines(), minFuzz, maxOffset, mode);
+            PatchFile patchFile = PatchFile.fromLines(patchesPath.toString(), patchesPath.readAllLines(), true);
+            boolean success = doPatch(outputCollector, rejectCollector, summary, basePath.toString(), basePath.readAllLines(), patchFile, minFuzz, maxOffset, mode);
             List<String> output = outputCollector.getSingleFile();
             List<String> reject = rejectCollector.getSingleFile();
             try (PrintWriter out = new PrintWriter(outputPath.open())) {
@@ -248,14 +250,23 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     }
 
     public boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, List<String>> bFunc, Function<String, List<String>> pFunc, float minFuzz, int maxOffset, PatchMode mode) {
-        Map<String, String> patchLookupRev = pEntries.stream().collect(Collectors.toMap(e -> e, e -> e.substring(0, e.lastIndexOf(".patch"))));
-        Map<String, String> patchLookup = patchLookupRev.entrySet().stream().collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+        Map<String, PatchFile> patchFiles = pEntries.stream()
+                .map(e -> PatchFile.fromLines(e, pFunc.apply(e), true))
+                .collect(Collectors.toMap(e -> {
+                            if (e.patchedPath == null) {
+                                return e.name.substring(0, e.name.lastIndexOf(".patch"));
+                            } else if (e.patchedPath.startsWith("b/")) {
+                                return e.patchedPath.substring(2);
+                            } else if (e.patchedPath.startsWith(bPrefix)) {
+                                return StringUtils.removeStart(e.patchedPath.substring(bPrefix.length()), "/");
+                            }
+                            return e.patchedPath;
+                        },
+                        Function.identity()));
 
-        Set<String> transformedPatches = pEntries.stream().map(patchLookupRev::get).collect(Collectors.toSet());
-
-        List<String> notPatched = bEntries.stream().filter(e -> !transformedPatches.contains(e)).sorted().collect(Collectors.toList());
-        List<String> patchedFiles = bEntries.stream().filter(transformedPatches::contains).sorted().collect(Collectors.toList());
-        List<String> removedFiles = transformedPatches.stream().filter(e -> !bEntries.contains(e)).sorted().collect(Collectors.toList());
+        List<String> notPatched = bEntries.stream().filter(e -> !patchFiles.containsKey(e)).sorted().collect(Collectors.toList());
+        List<String> patchedFiles = bEntries.stream().filter(patchFiles::containsKey).sorted().collect(Collectors.toList());
+        List<String> removedFiles = patchFiles.keySet().stream().filter(e -> !bEntries.contains(e)).sorted().collect(Collectors.toList());
 
         boolean result = true;
         for (String file : notPatched) {
@@ -265,27 +276,25 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
         for (String file : patchedFiles) {
             summary.changedFiles++;
-            String patchFile = patchLookup.get(file);
+            PatchFile patchFile = patchFiles.get(file);
             List<String> baseLines = bFunc.apply(file);
-            List<String> patchLines = pFunc.apply(patchFile);
-            result &= doPatch(oCollector, rCollector, summary, file, baseLines, patchFile, patchLines, minFuzz, maxOffset, mode);
+            result &= doPatch(oCollector, rCollector, summary, file, baseLines, patchFile, minFuzz, maxOffset, mode);
         }
 
         for (String file : removedFiles) {
             summary.missingFiles++;
-            String patchName = patchLookup.get(file);
-            List<String> lines = new ArrayList<>(pFunc.apply(patchName));
+            PatchFile patchFile = patchFiles.get(file);
+            List<String> lines = new ArrayList<>(patchFile.toLines(false));
             lines.add(0, "++++ Target missing");
-            verbose("Missing patch target for %s", patchName);
-            rCollector.consume(patchName, lines);
+            verbose("Missing patch target for %s", patchFile.name);
+            rCollector.consume(patchFile.name, lines);
             result = false;
         }
 
         return result;
     }
 
-    public boolean doPatch(FileCollector outputCollector, FileCollector rejectCollector, PatchesSummary summary, String baseName, List<String> base, String patchName, List<String> patch, float minFuzz, int maxOffset, PatchMode mode) {
-        PatchFile patchFile = PatchFile.fromLines(patch, true);
+    public boolean doPatch(FileCollector outputCollector, FileCollector rejectCollector, PatchesSummary summary, String baseName, List<String> base, PatchFile patchFile, float minFuzz, int maxOffset, PatchMode mode) {
         Patcher patcher = new Patcher(patchFile, base, minFuzz, maxOffset);
         verbose("Patching: " + baseName);
         List<Patcher.Result> results = patcher.patch(mode).collect(Collectors.toList());
@@ -331,7 +340,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         }
         outputCollector.consume(baseName, patcher.lines);
         if (!rejectLines.isEmpty()) {
-            rejectCollector.consume(patchName + ".rej", rejectLines);
+            rejectCollector.consume(patchFile.name + ".rej", rejectLines);
             return false;
         }
         return true;

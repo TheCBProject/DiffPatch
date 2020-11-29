@@ -12,13 +12,15 @@ public class PatchFile {
 
     private static final Pattern HUNK_OFFSET = Pattern.compile("@@ -(\\d+),(\\d+) \\+([_\\d]+),(\\d+) @@");
 
+    public String name;
     public String basePath;
     public String patchedPath;
 
     public List<Patch> patches = new ArrayList<>();
 
-    public static PatchFile fromLines(List<String> lines, boolean verifyHeaders) {
+    public static PatchFile fromLines(String name, List<String> lines, boolean verifyHeaders) {
         PatchFile patchFile = new PatchFile();
+        patchFile.name = name;
         Patch patch = null;
         int delta = 0;
         int i = 0;

@@ -159,7 +159,10 @@ public class DiffPatch {
             } else {
                 outputPath = new OutputPath.PipePath(pipe, outputFormat);
             }
-            OutputPath rejectsPath = new OutputPath.FilePath(rejects, rejectsFormat);
+            OutputPath rejectsPath = OutputPath.NullPath.INSTANCE;
+            if (rejects != null) {
+                rejectsPath = new OutputPath.FilePath(rejects, rejectsFormat);
+            }
 
             operation = PatchOperation.builder()
                     .logTo(logger)
