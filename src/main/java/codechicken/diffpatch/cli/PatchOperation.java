@@ -377,7 +377,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         for (Map.Entry<String, List<String>> entry : patchLines.entrySet()) {
             PatchFile patchFile = PatchFile.fromLines(entry.getKey(), entry.getValue(), true);
             List<String> lines = patchFile.toLines(false);
-            String joined = String.join("\n" + lines) + "\n";
+            String joined = String.join("\n", lines) + "\n";
             bakedPatches.put(entry.getKey(), joined.getBytes(StandardCharsets.UTF_8));
         }
         if (output.getFormat() != null) {
