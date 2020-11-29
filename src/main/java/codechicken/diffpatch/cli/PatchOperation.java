@@ -18,6 +18,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static codechicken.diffpatch.util.Utils.*;
+import static org.apache.commons.lang3.StringUtils.appendIfMissing;
+import static org.apache.commons.lang3.StringUtils.removeStart;
 
 /**
  * Created by covers1624 on 11/8/20.
@@ -258,7 +260,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                             } else if (e.patchedPath.startsWith("b/")) {
                                 return e.patchedPath.substring(2);
                             } else if (e.patchedPath.startsWith(bPrefix)) {
-                                return StringUtils.removeStart(e.patchedPath.substring(bPrefix.length()), "/");
+                                return removeStart(e.patchedPath.substring(bPrefix.length()), "/");
                             }
                             return e.patchedPath;
                         },
@@ -344,6 +346,71 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return false;
         }
         return true;
+    }
+
+    public static void bakePatches(InputPath input, OutputPath output) throws IOException {
+        bakePatches(input, "", output);
+    }
+
+    public static void bakePatches(InputPath input, String prefix, OutputPath output) throws IOException {
+        if (!input.exists()) {
+            throw new IllegalArgumentException("Expected input to exist.");
+        }
+        if (output.getType().isNull()) {
+            throw new IllegalArgumentException("Expected non-null output.");
+        }
+        Map<String, List<String>> patchLines = new HashMap<>();
+        if (input.isFile()) {
+            if (input.getFormat() == null) { throw new IllegalArgumentException("Input is single file or unknown ArchiveFormat."); }
+            try (ArchiveReader reader = input.getFormat().createReader(input.open(), prefix)) {
+                for (String entry : reader.getEntries()) {
+                    patchLines.put(entry, reader.readLines(entry));
+                }
+            }
+        } else {
+            Map<String, Path> index = indexChildren(input.toPath(), prefix);
+            for (Map.Entry<String, Path> entry : index.entrySet()) {
+                patchLines.put(entry.getKey(), Files.readAllLines(entry.getValue()));
+            }
+        }
+        Map<String, byte[]> bakedPatches = new HashMap<>();
+        for (Map.Entry<String, List<String>> entry : patchLines.entrySet()) {
+            PatchFile patchFile = PatchFile.fromLines(entry.getKey(), entry.getValue(), true);
+            List<String> lines = patchFile.toLines(false);
+            String joined = String.join("\n" + lines) + "\n";
+            bakedPatches.put(entry.getKey(), joined.getBytes(StandardCharsets.UTF_8));
+        }
+        if (output.getFormat() != null) {
+            try (ArchiveWriter writer = output.getFormat().createWriter(output.open())) {
+                for (Map.Entry<String, byte[]> entry : bakedPatches.entrySet()) {
+                    String path;
+                    if (!StringUtils.isEmpty(prefix)) {
+                        path = appendIfMissing(prefix, "/") + removeStart(entry.getKey(), "/");
+                    } else {
+                        path = entry.getKey();
+                    }
+                    writer.writeEntry(path, entry.getValue());
+                }
+            }
+        } else {
+            if (Files.exists(output.toPath())) {
+                Utils.deleteFolder(output.toPath());
+            }
+            for (Map.Entry<String, byte[]> entry : bakedPatches.entrySet()) {
+                Path path;
+                if (!StringUtils.isEmpty(prefix)) {
+                    path = output.toPath().resolve(appendIfMissing(prefix, "/") + removeStart(entry.getKey(), "/"));
+                } else {
+                    path = output.toPath().resolve(entry.getKey());
+                }
+                Files.write(makeParentDirs(path), entry.getValue());
+            }
+        }
+    }
+
+    public static String bakePatch(PatchFile patchFile) {
+        List<String> lines = patchFile.toLines(false);
+        return String.join("\n" + lines) + "\n";
     }
 
     public static class PatchesSummary {
