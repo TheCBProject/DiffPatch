@@ -1,0 +1,32 @@
+--- a/PatchFile.java
++++ b/PatchFile.java
+@@ -36,8 +36,10 @@
+             if (patch == null && line.charAt(0) != '@') {
+                 if (i == 1 && line.startsWith("--- ")) {
+                     patchFile.basePath = line.substring(4);
+-                } else if (i == 2) {
++                } else if (i == 2 && line.startsWith("+++ ")) {
+                     patchFile.patchedPath = line.substring(4);
++                } else if (i == 3 && line.startsWith("^^^ ")) {
++                    //CARROT!! :D
+                 } else {
+                     throw new IllegalArgumentException(String.format("Invalid context line %s:'%s'", i, line));
+                 }
+@@ -77,6 +79,9 @@
+                 case '-':
+                     patch.diffs.add(new Diff(Operation.DELETE, line.substring(1)));
+                     break;
++                case '^':
++                    patch.diffs.add(new Diff(Operation.CARROT, line.substring(1)));
++                    break;
+                 default:
+                     throw new IllegalArgumentException(String.format("Invalid patch line %s:'%s'", i, line));
+             }
+@@ -94,6 +99,7 @@
+         if (basePath != null && patchedPath != null) {
+             lines.add("--- " + basePath);
+             lines.add("+++ " + patchedPath);
++            lines.add("^^^ CARROT CARROT CARROT CARROT CARROT CARROT CARROT CARROT");
+         }
+ 
+         for (Patch p : patches) {

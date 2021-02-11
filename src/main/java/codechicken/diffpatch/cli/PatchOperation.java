@@ -129,7 +129,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return new Result<>(-1);
         }
 
-        if (outputPath.isFile()) {
+        if (outputPath.getType().isPath()) {
             Path out = outputPath.toPath();
             if (outputPath.getFormat() != null) {
                 if (Files.exists(out) && !Files.isRegularFile(out)) {
@@ -227,7 +227,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             }
         }
 
-        if (rejectsPath.exists()) {
+        if (!rejectsPath.getType().isNull()) {
             if (rejectsPath.getFormat() != null) {
                 try (ArchiveWriter writer = rejectsPath.getFormat().createWriter(rejectsPath.open())) {
                     for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
