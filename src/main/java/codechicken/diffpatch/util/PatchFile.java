@@ -41,7 +41,7 @@ public class PatchFile {
                 } else if (i == 2) {
                     patchFile.patchedPath = line.substring(4);
                 } else {
-                    throw new IllegalArgumentException(String.format("Invalid context line %s:'%s'", i, line));
+                    throw new IllegalArgumentException(String.format("Invalid context line in '%s' at %s:'%s'", name, i, line));
                 }
                 continue;
             }
@@ -50,7 +50,7 @@ public class PatchFile {
                 case '@': {
                     Matcher matcher = HUNK_OFFSET.matcher(line);
                     if (!matcher.find()) {
-                        throw new IllegalArgumentException(String.format("Invalid patch line %s:'%s'", i, line));
+                        throw new IllegalArgumentException(String.format("Invalid patch line in '%s' at %s:'%s'", name, i, line));
                     }
                     patch = new Patch();
                     patch.start1 = Integer.parseInt(matcher.group(1)) - 1;
@@ -63,7 +63,7 @@ public class PatchFile {
                     } else {
                         patch.start2 = Integer.parseInt(start2Str) - 1;
                         if (verifyHeaders && patch.start2 != patch.start1 + delta) {
-                            throw new IllegalArgumentException(String.format("Applied Offset Mismatch. Expected: %d, Actual: %d", patch.start1 + delta + 1, patch.start2 + 1));
+                            throw new IllegalArgumentException(String.format("Applied Offset Mismatch in '%s' at %s. Expected: %d, Actual: %d", name, i, patch.start1 + delta + 1, patch.start2 + 1));
                         }
                     }
                     delta += patch.length2 - patch.length1;
@@ -85,7 +85,7 @@ public class PatchFile {
                         break;
                     }
                 default:
-                    throw new IllegalArgumentException(String.format("Invalid patch line %s:'%s'", i, line));
+                    throw new IllegalArgumentException(String.format("Invalid patch line in '%s' at %s:'%s'", line, i, line));
             }
         }
         return patchFile;
