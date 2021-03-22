@@ -80,7 +80,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             if (!lines.isEmpty()) {
                 changes = true;
                 try (PrintWriter out = new PrintWriter(outputPath.open())) {
-                    out.println(String.join("\n", lines) + "\n");
+                    out.println(String.join(System.lineSeparator(), lines) + System.lineSeparator());
                 }
             }
             if (this.summary) {
@@ -178,7 +178,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             } else if (outputPath.getFormat() != null) {
                 try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
                     for (Map.Entry<String, List<String>> entry : patches.get().entrySet()) {
-                        String patchFile = String.join("\n", entry.getValue()) + "\n";
+                        String patchFile = String.join(System.lineSeparator(), entry.getValue()) + System.lineSeparator();
                         writer.writeEntry(entry.getKey(), patchFile.getBytes(StandardCharsets.UTF_8));
                     }
                 }

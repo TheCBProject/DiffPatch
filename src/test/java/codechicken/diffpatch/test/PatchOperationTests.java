@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -27,9 +28,11 @@ public class PatchOperationTests {
         Path tempDir = Files.createTempDirectory("dir_test");
         tempDir.toFile().deleteOnExit();
         Path orig = tempDir.resolve("orig");
+        Path cmp = tempDir.resolve("cmp");
         Path src = tempDir.resolve("src");
         Path patches = tempDir.resolve("patches");
         copyResource("/data/orig/PatchFile.java", orig.resolve("PatchFile.java"));
+        copyResource("/data/src/PatchFile.java", cmp.resolve("PatchFile.java"));
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .basePath(orig)
@@ -39,6 +42,9 @@ public class PatchOperationTests {
                 .operate();
         assertEquals(0, result.exit);
         assertTrue(Files.exists(src.resolve("PatchFile.java")));
+        List<String> output = Files.readAllLines(src.resolve("PatchFile.java"));
+        List<String> original = Files.readAllLines(cmp.resolve("PatchFile.java"));
+        assertEquals(output, original);
     }
 
     @Test

@@ -18,6 +18,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static codechicken.diffpatch.util.Utils.*;
+import static java.lang.System.lineSeparator;
 import static org.apache.commons.lang3.StringUtils.appendIfMissing;
 import static org.apache.commons.lang3.StringUtils.removeStart;
 
@@ -109,12 +110,12 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             List<String> output = outputCollector.getSingleFile();
             List<String> reject = rejectCollector.getSingleFile();
             try (PrintWriter out = new PrintWriter(outputPath.open())) {
-                out.println(String.join("\n", output) + "\n");
+                out.println(String.join(lineSeparator(), output));
             }
 
             if (rejectsPath.exists() && !reject.isEmpty()) {
                 try (PrintWriter out = new PrintWriter(rejectsPath.open())) {
-                    out.println(String.join("\n", reject + "\n"));
+                    out.println(String.join(lineSeparator(), reject + lineSeparator()));
                 }
             }
             if (this.summary) {
@@ -213,7 +214,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         if (outputPath.getFormat() != null) {
             try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
                 for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
-                    String file = String.join("\n", entry.getValue()) + "\n";
+                    String file = String.join(lineSeparator(), entry.getValue());
                     writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
                 }
             }
@@ -223,7 +224,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             }
             for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
                 Path path = outputPath.toPath().resolve(entry.getKey());
-                Files.write(makeParentDirs(path), entry.getValue());
+                String file = String.join(lineSeparator(), entry.getValue());
+                Files.write(makeParentDirs(path), file.getBytes(StandardCharsets.UTF_8));
             }
         }
 
@@ -231,7 +233,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (rejectsPath.getFormat() != null) {
                 try (ArchiveWriter writer = rejectsPath.getFormat().createWriter(rejectsPath.open())) {
                     for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
-                        String file = String.join("\n", entry.getValue()) + "\n";
+                        String file = String.join(lineSeparator(), entry.getValue()) + lineSeparator();
                         writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
                     }
                 }
@@ -241,7 +243,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 }
                 for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
                     Path path = rejectsPath.toPath().resolve(entry.getKey());
-                    Files.write(makeParentDirs(path), entry.getValue());
+                    String file = String.join(lineSeparator(), entry.getValue());
+                    Files.write(makeParentDirs(path), file.getBytes(StandardCharsets.UTF_8));
                 }
             }
         }
@@ -340,7 +343,17 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 rejectLines.add("++++ END HUNK");
             }
         }
-        outputCollector.consume(baseName, patcher.lines);
+        List<String> lines = patcher.lines;
+        if (!lines.isEmpty()) {
+            if (lines.get(lines.size() - 1).isEmpty()) {
+                if (!patchFile.noNewLine) {//if we end in a new line and shouldn't have one
+                    lines.remove(lines.size() - 1);
+                }
+            } else {
+                lines.add("");
+            }
+        }
+        outputCollector.consume(baseName, lines);
         if (!rejectLines.isEmpty()) {
             rejectCollector.consume(patchFile.name + ".rej", rejectLines);
             return false;
@@ -377,7 +390,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         for (Map.Entry<String, List<String>> entry : patchLines.entrySet()) {
             PatchFile patchFile = PatchFile.fromLines(entry.getKey(), entry.getValue(), true);
             List<String> lines = patchFile.toLines(false);
-            String joined = String.join("\n", lines) + "\n";
+            String joined = String.join(lineSeparator(), lines) + lineSeparator();
             bakedPatches.put(entry.getKey(), joined.getBytes(StandardCharsets.UTF_8));
         }
         if (output.getFormat() != null) {
@@ -410,7 +423,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
     public static String bakePatch(PatchFile patchFile) {
         List<String> lines = patchFile.toLines(false);
-        return String.join("\n" + lines) + "\n";
+        return String.join(lineSeparator() + lines) + lineSeparator();
     }
 
     public static class PatchesSummary {

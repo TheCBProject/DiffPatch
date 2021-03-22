@@ -11,10 +11,12 @@ import java.util.regex.Pattern;
 public class PatchFile {
 
     private static final Pattern HUNK_OFFSET = Pattern.compile("@@ -(\\d+),(\\d+) \\+([_\\d]+),(\\d+) @@");
+    private static final String NO_NEW_LINE = "\\ No newline at end of file";
 
     public String name;
     public String basePath;
     public String patchedPath;
+    public boolean noNewLine;
 
     public List<Patch> patches = new ArrayList<>();
 
@@ -77,6 +79,11 @@ public class PatchFile {
                 case '-':
                     patch.diffs.add(new Diff(Operation.DELETE, line.substring(1)));
                     break;
+                case '\\':
+                    if (line.equals(NO_NEW_LINE)) {
+                        patchFile.noNewLine = true;
+                        break;
+                    }
                 default:
                     throw new IllegalArgumentException(String.format("Invalid patch line %s:'%s'", i, line));
             }
