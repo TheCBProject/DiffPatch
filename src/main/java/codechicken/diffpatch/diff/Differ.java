@@ -70,4 +70,7 @@ public abstract class Differ {
         return patch;
     }
 
+    public CharRepresenter getCharRep() {
+        return charRep;
+    }
 }
