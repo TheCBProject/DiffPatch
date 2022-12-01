@@ -73,7 +73,7 @@ public class CharRepresenter {
                 }
             }
             String word = line.substring(i, i + len);
-            if (b > buf.length) {
+            if (b >= buf.length) {
                 buf = Arrays.copyOf(buf, buf.length * 2);
             }
             buf[b++] = addWord(word);
