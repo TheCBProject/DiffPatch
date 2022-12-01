@@ -104,6 +104,8 @@ public class ArchiveFormatTest {
             Set<String> archiveKeys = reader.getEntries();
             assertEquals(origFiles.size(), archiveKeys.size());
             assertEquals(origFiles.keySet(), archiveKeys);
+            // Assert order is identical.
+            assertEquals(new ArrayList<>(origFiles.keySet()), new ArrayList<>(reader.getEntries()));
 
             for (Map.Entry<String, List<String>> entry : origFiles.entrySet()) {
                 List<String> expected = entry.getValue();
@@ -115,7 +117,7 @@ public class ArchiveFormatTest {
     }
 
     public static Map<String, List<String>> generateRandomFiles(Random randy) {
-        Map<String, List<String>> files = new HashMap<>();
+        Map<String, List<String>> files = new LinkedHashMap<>();
 
         int numFiles = 10 + randy.nextInt(100);
         for (int i = 0; i < numFiles; i++) {

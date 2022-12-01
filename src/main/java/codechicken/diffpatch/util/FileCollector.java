@@ -7,7 +7,7 @@ import java.util.*;
  */
 public class FileCollector {
 
-    private final Map<String, List<String>> files = new HashMap<>();
+    private final Map<String, List<String>> files = new LinkedHashMap<>();
 
     /**
      * Adds a List of lines to the collector.

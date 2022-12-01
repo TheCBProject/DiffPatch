@@ -6,7 +6,7 @@ import org.apache.commons.compress.archivers.ArchiveInputStream;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,7 +18,7 @@ import java.util.Set;
  */
 public class ArchiveInputStreamReader implements ArchiveReader {
 
-    private final Map<String, byte[]> archiveIndex = new HashMap<>();
+    private final Map<String, byte[]> archiveIndex = new LinkedHashMap<>();
     private final ArchiveInputStream is;
 
     public ArchiveInputStreamReader(ArchiveInputStream is, String prefix) {
@@ -26,12 +26,12 @@ public class ArchiveInputStreamReader implements ArchiveReader {
         try {
             ArchiveEntry entry;
             while ((entry = is.getNextEntry()) != null) {
-                if (!entry.isDirectory()) {
-                    String name = Utils.stripStart('/', entry.getName());
-                    if (prefix.isEmpty() || entry.getName().startsWith(prefix)) {
-                        archiveIndex.put(Utils.stripStart('/', name.substring(prefix.length())), Utils.toBytes(is));
-                    }
-                }
+                if (entry.isDirectory()) continue;
+
+                String name = Utils.stripStart('/', entry.getName());
+                if (!prefix.isEmpty() && !entry.getName().startsWith(prefix)) continue;
+
+                archiveIndex.put(Utils.stripStart('/', name.substring(prefix.length())), Utils.toBytes(is));
             }
         } catch (IOException e) {
             throw new RuntimeException("Failed to index archive", e);
