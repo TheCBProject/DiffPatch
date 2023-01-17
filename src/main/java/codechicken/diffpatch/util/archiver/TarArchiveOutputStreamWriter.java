@@ -12,6 +12,7 @@ public class TarArchiveOutputStreamWriter extends AbstractArchiveOutputStreamWri
 
     public TarArchiveOutputStreamWriter(TarArchiveOutputStream os) {
         super(os);
+        os.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
     }
 
     @Override
