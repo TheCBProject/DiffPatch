@@ -7,7 +7,7 @@ plugins {
 
 group 'codechicken'
 archivesBaseName = 'DiffPatch'
-version '1.2.6'
+version '1.2.7'
 
 targetCompatibility = "1.8"
 sourceCompatibility = "1.8"
