@@ -7,6 +7,7 @@ import codechicken.diffpatch.util.Utils;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
+import net.covers1624.quack.io.IOUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -211,7 +212,7 @@ public class DiffOperationTests {
 
     private static void copyResource(String resource, ArchiveWriter writer, String to) throws IOException {
         try (InputStream is = DiffOperationTests.class.getResourceAsStream(resource)) {
-            writer.writeEntry(to, Utils.toBytes(is));
+            writer.writeEntry(to, IOUtils.toBytes(is));
         }
     }
 }

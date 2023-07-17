@@ -52,6 +52,7 @@ configurations {
 }
 
 dependencies {
+    shadow 'net.covers1624:Quack:0.4.7.72'
     shadow 'it.unimi.dsi:fastutil:8.3.1'
     shadow 'org.apache.commons:commons-lang3:3.9'
     shadow 'org.apache.commons:commons-compress:1.18'
@@ -104,6 +105,7 @@ shadowJar {
     exclude 'module-info.class'
 
     //Relocate all our dependencies into a repack package.
+    relocate 'net.covers1624.quack', 'codechicken.repack.net.covers1624.quack'
     relocate 'it.unimi', 'codechicken.repack.it.unimi'
     relocate 'org.apache', 'codechicken.repack.org.apache'
     relocate 'org.tukaani', 'codechicken.repack.org.tukaani'

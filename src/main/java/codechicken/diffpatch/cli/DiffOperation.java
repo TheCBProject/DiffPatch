@@ -6,6 +6,9 @@ import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
+import net.covers1624.quack.io.IOUtils;
+import net.covers1624.quack.io.NullOutputStream;
+import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
@@ -18,7 +21,6 @@ import java.util.stream.Collectors;
 
 import static codechicken.diffpatch.util.LogLevel.*;
 import static codechicken.diffpatch.util.Utils.indexChildren;
-import static codechicken.diffpatch.util.Utils.makeParentDirs;
 
 /**
  * Handles doing a Diff operation from the CLI.
@@ -196,7 +198,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                 for (Map.Entry<String, List<String>> entry : patches.get().entrySet()) {
                     Path path = outputPath.toPath().resolve(entry.getKey());
                     String patchFile = String.join(lineEnding, entry.getValue()) + lineEnding;
-                    Files.write(makeParentDirs(path), patchFile.getBytes(StandardCharsets.UTF_8));
+                    Files.write(IOUtils.makeParents(path), patchFile.getBytes(StandardCharsets.UTF_8));
                 }
             }
         }
@@ -326,12 +328,10 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     }
 
     public static class Builder {
-
-        private static final Consumer<PrintStream> NULL_CALLBACK = e -> { };
         private static final PrintStream NULL_STREAM = new PrintStream(NullOutputStream.INSTANCE);
 
         private PrintStream logger = NULL_STREAM;
-        private Consumer<PrintStream> helpCallback = NULL_CALLBACK;
+        private Consumer<PrintStream> helpCallback = SneakyUtils.nullCons();
         private LogLevel level = LogLevel.WARN;
         private boolean summary;
         private InputPath aPath;

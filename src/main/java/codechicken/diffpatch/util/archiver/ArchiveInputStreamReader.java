@@ -1,6 +1,7 @@
 package codechicken.diffpatch.util.archiver;
 
 import codechicken.diffpatch.util.Utils;
+import net.covers1624.quack.io.IOUtils;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 
@@ -31,7 +32,7 @@ public class ArchiveInputStreamReader implements ArchiveReader {
                 String name = Utils.stripStart('/', entry.getName());
                 if (!prefix.isEmpty() && !entry.getName().startsWith(prefix)) continue;
 
-                archiveIndex.put(Utils.stripStart('/', name.substring(prefix.length())), Utils.toBytes(is));
+                archiveIndex.put(Utils.stripStart('/', name.substring(prefix.length())), IOUtils.toBytes(is));
             }
         } catch (IOException e) {
             throw new RuntimeException("Failed to index archive", e);

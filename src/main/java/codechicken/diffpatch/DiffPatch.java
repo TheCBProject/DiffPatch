@@ -10,9 +10,11 @@ import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import joptsimple.util.EnumConverter;
 import joptsimple.util.PathConverter;
+import net.covers1624.quack.util.SneakyUtils;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -135,7 +137,7 @@ public class DiffPatch {
 
             operation = DiffOperation.builder()
                     .logTo(logger)
-                    .helpCallback(Utils.sneakC(parser::printHelpOn))
+                    .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
                     .aPath(a, ArchiveFormat.findFormat(a.getFileName()))
                     .bPath(b, ArchiveFormat.findFormat(b.getFileName()))
                     .outputPath(outputPath)
@@ -176,7 +178,7 @@ public class DiffPatch {
 
             operation = PatchOperation.builder()
                     .logTo(logger)
-                    .helpCallback(Utils.sneakC(parser::printHelpOn))
+                    .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
                     .level(level)
                     .summary(summary)
                     .basePath(basePath)

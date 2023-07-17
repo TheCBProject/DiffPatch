@@ -1,6 +1,7 @@
 package codechicken.diffpatch.util;
 
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
+import net.covers1624.quack.io.IOUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -149,7 +150,7 @@ public abstract class InputPath {
 
         @Override
         public InputStream open() {
-            return Utils.protectClose(pipe);
+            return IOUtils.protectClose(pipe);
         }
 
         @Override

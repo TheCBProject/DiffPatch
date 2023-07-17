@@ -1,6 +1,7 @@
 package codechicken.diffpatch.util;
 
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
+import net.covers1624.quack.io.IOUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -130,7 +131,7 @@ public abstract class OutputPath {
 
         @Override
         public OutputStream open() {
-            return Utils.protectClose(pipe);
+            return IOUtils.protectClose(pipe);
         }
 
         @Override

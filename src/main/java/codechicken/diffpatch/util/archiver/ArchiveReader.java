@@ -1,6 +1,7 @@
 package codechicken.diffpatch.util.archiver;
 
 import codechicken.diffpatch.util.Utils;
+import net.covers1624.quack.io.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -17,6 +18,6 @@ public interface ArchiveReader extends Closeable {
     byte[] getBytes(String entry);
 
     default List<String> readLines(String entry) throws IOException {
-        return Utils.readAll(getBytes(entry));
+        return IOUtils.readAll(getBytes(entry));
     }
 }

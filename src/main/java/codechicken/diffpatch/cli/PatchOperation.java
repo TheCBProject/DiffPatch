@@ -6,6 +6,8 @@ import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
+import net.covers1624.quack.io.NullOutputStream;
+import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
@@ -18,7 +20,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static codechicken.diffpatch.util.LogLevel.*;
-import static codechicken.diffpatch.util.Utils.*;
+import static codechicken.diffpatch.util.Utils.indexChildren;
+import static net.covers1624.quack.io.IOUtils.makeParents;
+import static net.covers1624.quack.util.SneakyUtils.sneak;
+import static net.covers1624.quack.util.SneakyUtils.sneaky;
 import static org.apache.commons.lang3.StringUtils.appendIfMissing;
 import static org.apache.commons.lang3.StringUtils.removeStart;
 
@@ -165,7 +170,18 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
             try (ArchiveReader baseReader = basePath.getFormat().createReader(basePath.open())) {
                 try (ArchiveReader patchesReader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
-                    patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseReader.getEntries(), patchesReader.getEntries(), sneakF(baseReader::readLines), sneakF(patchesReader::readLines), minFuzz, maxOffset, mode);
+                    patchSuccess = doPatch(
+                            outputCollector,
+                            rejectCollector,
+                            summary,
+                            baseReader.getEntries(),
+                            patchesReader.getEntries(),
+                            sneak(baseReader::readLines),
+                            sneak(patchesReader::readLines),
+                            minFuzz,
+                            maxOffset,
+                            mode
+                    );
                 }
             }
         } else {
@@ -173,7 +189,18 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (!basePath.isFile() && !patchesPath.isFile()) {
                 Map<String, Path> baseIndex = indexChildren(basePath.toPath());
                 Map<String, Path> patchIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
-                patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex.keySet(), patchIndex.keySet(), sneakF(e -> Files.readAllLines(baseIndex.get(e))), sneakF(e -> Files.readAllLines(patchIndex.get(e))), minFuzz, maxOffset, mode);
+                patchSuccess = doPatch(
+                        outputCollector,
+                        rejectCollector,
+                        summary,
+                        baseIndex.keySet(),
+                        patchIndex.keySet(),
+                        SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(baseIndex.get(e))),
+                        SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(patchIndex.get(e))),
+                        minFuzz,
+                        maxOffset,
+                        mode
+                );
             } else {
                 //One input is a directory, the other is a file.
                 Set<String> baseIndex;
@@ -188,11 +215,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                     }
                     Map<String, Path> pathIndex = indexChildren(basePath.toPath());
                     baseIndex = pathIndex.keySet();
-                    baseFunc = sneakF(e -> Files.readAllLines(pathIndex.get(e)));
+                    baseFunc = SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(pathIndex.get(e)));
                     //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
                     try (ArchiveReader reader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
                         patchIndex = reader.getEntries();
-                        patchFunc = sneakF(reader::readLines);
+                        patchFunc = sneak(reader::readLines);
                     }
                 } else {
                     if (basePath.getFormat() == null) {
@@ -202,11 +229,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                     }
                     Map<String, Path> pathIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
                     patchIndex = pathIndex.keySet();
-                    patchFunc = sneakF(e -> Files.readAllLines(pathIndex.get(e)));
+                    patchFunc = SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(pathIndex.get(e)));
                     //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
                     try (ArchiveReader reader = basePath.getFormat().createReader(basePath.open())) {
                         baseIndex = reader.getEntries();
-                        baseFunc = sneakF(reader::readLines);
+                        baseFunc = sneak(reader::readLines);
                     }
                 }
                 patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchIndex, baseFunc, patchFunc, minFuzz, maxOffset, mode);
@@ -227,7 +254,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
                 Path path = outputPath.toPath().resolve(entry.getKey());
                 String file = String.join(lineEnding, entry.getValue());
-                Files.write(makeParentDirs(path), file.getBytes(StandardCharsets.UTF_8));
+                Files.write(makeParents(path), file.getBytes(StandardCharsets.UTF_8));
             }
         }
 
@@ -246,7 +273,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
                     Path path = rejectsPath.toPath().resolve(entry.getKey());
                     String file = String.join(lineEnding, entry.getValue());
-                    Files.write(makeParentDirs(path), file.getBytes(StandardCharsets.UTF_8));
+                    Files.write(makeParents(path), file.getBytes(StandardCharsets.UTF_8));
                 }
             }
         }
@@ -421,7 +448,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 } else {
                     path = output.toPath().resolve(entry.getKey());
                 }
-                Files.write(makeParentDirs(path), entry.getValue());
+                Files.write(makeParents(path), entry.getValue());
             }
         }
     }
@@ -463,12 +490,10 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     }
 
     public static class Builder {
-
-        private static final Consumer<PrintStream> NULL_CALLBACK = e -> { };
         private static final PrintStream NULL_STREAM = new PrintStream(NullOutputStream.INSTANCE);
 
         private PrintStream logger = NULL_STREAM;
-        private Consumer<PrintStream> helpCallback = NULL_CALLBACK;
+        private Consumer<PrintStream> helpCallback = SneakyUtils.nullCons();
         private LogLevel level = LogLevel.WARN;
         private boolean summary;
         private InputPath basePath;
