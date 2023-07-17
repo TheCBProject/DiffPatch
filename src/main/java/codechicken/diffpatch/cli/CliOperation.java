@@ -30,6 +30,9 @@ public abstract class CliOperation<T> {
 
     public final void log(LogLevel level, String str, Object... args) {
         if (this.level.shouldLog(level)) {
+            if (this.level.printAllLevelNames || level.printLevelName) {
+                logger.print("[" + level + "] ");
+            }
             logger.println(String.format(str, args));
         }
     }

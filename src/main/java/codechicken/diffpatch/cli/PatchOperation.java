@@ -63,11 +63,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     @Override
     public Result<PatchesSummary> operate() throws IOException {
         if (!basePath.exists()) {
-            log(ERROR, "Err: Base file doesn't exist.");
+            log(ERROR, "Base file doesn't exist.");
             return new Result<>(-1);
         }
         if (!patchesPath.exists()) {
-            log(ERROR, "Err: Patch file doesn't exist.");
+            log(ERROR, "Patch file doesn't exist.");
             return new Result<>(-1);
         }
 
@@ -79,28 +79,28 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         //Base path and patch path are both singular files.
         if (basePath.isFile() && patchesPath.isFile() && basePath.getFormat() == null && patchesPath.getFormat() == null) {
             if (outputPath.getFormat() != null) {
-                log(ERROR, "Err: Can't specify output format when patching regular file.");
+                log(ERROR, "Can't specify output format when patching regular file.");
                 printHelp();
                 return new Result<>(-1);
             }
             if (outputPath.getType().isPath()) {
                 Path out = outputPath.toPath();
                 if (Files.exists(out) && !Files.isRegularFile(out)) {
-                    log(ERROR, "Err: Output already exists and is not a file.");
+                    log(ERROR, "Output already exists and is not a file.");
                     printHelp();
                     return new Result<>(-1);
                 }
             }
             if (rejectsPath.exists()) {
                 if (rejectsPath.getFormat() != null) {
-                    log(ERROR, "Err: Can't specify reject format when patching regular file.");
+                    log(ERROR, "Can't specify reject format when patching regular file.");
                     printHelp();
                     return new Result<>(-1);
                 }
                 if (rejectsPath.getType().isPath()) {
                     Path out = rejectsPath.toPath();
                     if (Files.exists(out) && !Files.isRegularFile(out)) {
-                        log(ERROR, "Err: Reject already exists and is not a file.");
+                        log(ERROR, "Reject already exists and is not a file.");
                         printHelp();
                         return new Result<>(-1);
                     }
@@ -127,7 +127,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         }
 
         if (outputPath.getType().isPipe() && outputPath.getFormat() == null) {
-            log(ERROR, "Err: Output detected as pipe but no format is specified.");
+            log(ERROR, "Output detected as pipe but no format is specified.");
             printHelp();
             return new Result<>(-1);
         }
@@ -136,14 +136,14 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             Path out = outputPath.toPath();
             if (outputPath.getFormat() != null) {
                 if (Files.exists(out) && !Files.isRegularFile(out)) {
-                    log(ERROR, "Err: Output already exists and is not a file.");
+                    log(ERROR, "Output already exists and is not a file.");
                     printHelp();
                     return new Result<>(-1);
                 }
 
             } else {
                 if (Files.exists(out) && !Files.isDirectory(out)) {
-                    log(ERROR, "Err: Output already exists and is not a directory.");
+                    log(ERROR, "Output already exists and is not a directory.");
                     printHelp();
                     return new Result<>(-1);
                 }
@@ -153,12 +153,12 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         //Both inputs are still files, both must be archives.
         if (basePath.isFile() && patchesPath.isFile()) {
             if (basePath.getFormat() == null) {
-                log(ERROR, "Err: Base path is in an unknown archive format");
+                log(ERROR, "Base path is in an unknown archive format");
                 printHelp();
                 return new Result<>(-1);
             }
             if (patchesPath.getFormat() == null) {
-                log(ERROR, "Err: Patches path is in an unknown archive format");
+                log(ERROR, "Patches path is in an unknown archive format");
                 printHelp();
                 return new Result<>(-1);
             }
@@ -182,7 +182,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 Function<String, List<String>> patchFunc;
                 if (!basePath.isFile()) {
                     if (patchesPath.getFormat() == null) {
-                        log(ERROR, "Err: Patches file is in an unknown format, whilst Base file is a directory.");
+                        log(ERROR, "Patches file is in an unknown format, whilst Base file is a directory.");
                         printHelp();
                         return new Result<>(-1);
                     }
@@ -196,7 +196,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                     }
                 } else {
                     if (basePath.getFormat() == null) {
-                        log(ERROR, "Err: Base file is in an unknown format, whilst Patches file is a directory.");
+                        log(ERROR, "Base file is in an unknown format, whilst Patches file is a directory.");
                         printHelp();
                         return new Result<>(-1);
                     }

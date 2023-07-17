@@ -57,11 +57,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     @Override
     public Result<DiffSummary> operate() throws IOException {
         if (!aPath.exists()) {
-            log(ERROR, "Err: File A doesn't exist.");
+            log(ERROR, "File A doesn't exist.");
             return new Result<>(-1);
         }
         if (!bPath.exists()) {
-            log(ERROR, "Err: File B doesn't exist.");
+            log(ERROR, "File B doesn't exist.");
             return new Result<>(-1);
         }
 
@@ -70,12 +70,12 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         //If inputs are both files, and no format is set, we are diffing singular files.
         if (aPath.isFile() && bPath.isFile() && aPath.getFormat() == null && bPath.getFormat() == null) {
             if (outputPath.getFormat() != null) {
-                log(ERROR, "Err: Can't specify output format when diffing regular files.");
+                log(ERROR, "Can't specify output format when diffing regular files.");
                 printHelp();
                 return new Result<>(-1);
             }
             if (outputPath.getType().isPath() && Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
-                log(ERROR, "Err: Output already exists and is not a file.");
+                log(ERROR, "Output already exists and is not a file.");
                 printHelp();
                 return new Result<>(-1);
             }
@@ -96,13 +96,13 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         if (outputPath.getType().isPath()) {
             if (outputPath.getFormat() != null) {
                 if (Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
-                    log(ERROR, "Err: Output already exists and is not a file.");
+                    log(ERROR, "Output already exists and is not a file.");
                     printHelp();
                     return new Result<>(-1);
                 }
             } else {
                 if (Files.exists(outputPath.toPath()) && !Files.isDirectory(outputPath.toPath())) {
-                    log(ERROR, "Err: Output already exists and is not a directory.");
+                    log(ERROR, "Output already exists and is not a directory.");
                     printHelp();
                     return new Result<>(-1);
                 }
@@ -112,12 +112,12 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         //If both inputs are files at this point, must be archives.
         if (aPath.isFile() && bPath.isFile()) {
             if (aPath.getFormat() == null) {
-                log(ERROR, "Err: File A is in an unknown archive format.");
+                log(ERROR, "File A is in an unknown archive format.");
                 printHelp();
                 return new Result<>(-1);
             }
             if (bPath.getFormat() == null) {
-                log(ERROR, "Err: File B is in an unknown archive format.");
+                log(ERROR, "File B is in an unknown archive format.");
                 printHelp();
                 return new Result<>(-1);
             }
@@ -141,7 +141,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             LinesReader bFunc;
             if (!aPath.isFile()) {
                 if (bPath.getFormat() == null) {
-                    log(ERROR, "Err: File B is in an unknown format, whilst File A is a directory.");
+                    log(ERROR, "File B is in an unknown format, whilst File A is a directory.");
                     printHelp();
                     return new Result<>(-1);
                 }
@@ -155,7 +155,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                 }
             } else {
                 if (aPath.getFormat() == null) {
-                    log(ERROR, "Err: File A is in an unknown format, whilst File B is a directory.");
+                    log(ERROR, "File A is in an unknown format, whilst File B is a directory.");
                     printHelp();
                     return new Result<>(-1);
                 }
