@@ -18,7 +18,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static codechicken.diffpatch.util.Utils.*;
-import static java.lang.System.lineSeparator;
 import static org.apache.commons.lang3.StringUtils.appendIfMissing;
 import static org.apache.commons.lang3.StringUtils.removeStart;
 
@@ -38,8 +37,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     private final int maxOffset;
     private final PatchMode mode;
     private final String patchesPrefix;
+    private final String lineEnding;
 
-    public PatchOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix) {
+    private PatchOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding) {
         super(logger, helpCallback, verbose);
         this.summary = summary;
         this.basePath = basePath;
@@ -52,6 +52,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         this.maxOffset = maxOffset;
         this.mode = mode;
         this.patchesPrefix = patchesPrefix;
+        this.lineEnding = lineEnding;
     }
 
     public static Builder builder() {
@@ -110,12 +111,12 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             List<String> output = outputCollector.getSingleFile();
             List<String> reject = rejectCollector.getSingleFile();
             try (PrintWriter out = new PrintWriter(outputPath.open())) {
-                out.println(String.join(lineSeparator(), output));
+                out.println(String.join(lineEnding, output));
             }
 
             if (rejectsPath.exists() && !reject.isEmpty()) {
                 try (PrintWriter out = new PrintWriter(rejectsPath.open())) {
-                    out.println(String.join(lineSeparator(), reject + lineSeparator()));
+                    out.println(String.join(lineEnding, reject + lineEnding));
                 }
             }
             if (this.summary) {
@@ -214,7 +215,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         if (outputPath.getFormat() != null) {
             try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
                 for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
-                    String file = String.join(lineSeparator(), entry.getValue());
+                    String file = String.join(lineEnding, entry.getValue());
                     writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
                 }
             }
@@ -224,7 +225,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             }
             for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
                 Path path = outputPath.toPath().resolve(entry.getKey());
-                String file = String.join(lineSeparator(), entry.getValue());
+                String file = String.join(lineEnding, entry.getValue());
                 Files.write(makeParentDirs(path), file.getBytes(StandardCharsets.UTF_8));
             }
         }
@@ -233,7 +234,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (rejectsPath.getFormat() != null) {
                 try (ArchiveWriter writer = rejectsPath.getFormat().createWriter(rejectsPath.open())) {
                     for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
-                        String file = String.join(lineSeparator(), entry.getValue()) + lineSeparator();
+                        String file = String.join(lineEnding, entry.getValue()) + lineEnding;
                         writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
                     }
                 }
@@ -243,7 +244,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 }
                 for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
                     Path path = rejectsPath.toPath().resolve(entry.getKey());
-                    String file = String.join(lineSeparator(), entry.getValue());
+                    String file = String.join(lineEnding, entry.getValue());
                     Files.write(makeParentDirs(path), file.getBytes(StandardCharsets.UTF_8));
                 }
             }
@@ -361,11 +362,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return true;
     }
 
-    public static void bakePatches(InputPath input, OutputPath output) throws IOException {
-        bakePatches(input, "", output);
+    public static void bakePatches(InputPath input, OutputPath output, String lineEnding) throws IOException {
+        bakePatches(input, "", output, lineEnding);
     }
 
-    public static void bakePatches(InputPath input, String prefix, OutputPath output) throws IOException {
+    public static void bakePatches(InputPath input, String prefix, OutputPath output, String lineEnding) throws IOException {
         if (!input.exists()) {
             throw new IllegalArgumentException("Expected input to exist.");
         }
@@ -390,7 +391,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         for (Map.Entry<String, List<String>> entry : patchLines.entrySet()) {
             PatchFile patchFile = PatchFile.fromLines(entry.getKey(), entry.getValue(), true);
             List<String> lines = patchFile.toLines(false);
-            String joined = String.join(lineSeparator(), lines) + lineSeparator();
+            String joined = String.join(lineEnding, lines) + lineEnding;
             bakedPatches.put(entry.getKey(), joined.getBytes(StandardCharsets.UTF_8));
         }
         if (output.getFormat() != null) {
@@ -421,9 +422,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         }
     }
 
-    public static String bakePatch(PatchFile patchFile) {
+    public static String bakePatch(PatchFile patchFile, String lineEnding) {
         List<String> lines = patchFile.toLines(false);
-        return String.join(lineSeparator() + lines) + lineSeparator();
+        return String.join(lineEnding + lines) + lineEnding;
     }
 
     public static class PatchesSummary {
@@ -477,6 +478,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
         private String aPrefix = "a/";
         private String bPrefix = "b/";
+        private String lineEnding = System.lineSeparator();
 
         private Builder() {
         }
@@ -605,6 +607,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return this;
         }
 
+        public Builder lineEnding(String lineEnding) {
+            this.lineEnding = lineEnding;
+            return this;
+        }
+
         public PatchOperation build() {
             if (basePath == null) {
                 throw new IllegalStateException("basePath not set.");
@@ -615,7 +622,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (outputPath == null) {
                 throw new IllegalStateException("output not set.");
             }
-            return new PatchOperation(logger, helpCallback, verbose, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix);
+            return new PatchOperation(logger, helpCallback, verbose, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix, lineEnding);
         }
 
     }
