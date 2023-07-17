@@ -119,12 +119,12 @@ public class Patcher {
             wmLines.addAll(loc, patch.wmPatched);
         }
 
-        int patchedDelta = patches.stream()//
+        int patchedDelta = patches.stream()
                 .filter(e -> {
                     LineRange r = e.getKeepoutRange2();
                     return r != null && r.getEnd() <= loc;
-                })//
-                .mapToInt(e -> e.getAppliedDelta().getAsInt())//
+                })
+                .mapToInt(e -> e.getAppliedDelta().getAsInt())
                 .sum();
         Patch appliedPatch = patch;
         if (appliedPatch.start2 != loc || appliedPatch.start1 != loc - patchedDelta) {
@@ -351,14 +351,14 @@ public class Patcher {
         }
 
         // we're creating twice as many MatchMatrix objects as we need, incurring some wasted allocation and setup time, but it reads easier than trying to precompute all the edge cases
-        List<FuzzyLineMatcher.MatchMatrix> fwdMatchers = ranges.stream()//
-                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))//
-                .filter(m -> loc < m.workingRange.getLast())//
+        List<FuzzyLineMatcher.MatchMatrix> fwdMatchers = ranges.stream()
+                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))
+                .filter(m -> loc < m.workingRange.getLast())
                 .collect(Collectors.toList());
-        List<FuzzyLineMatcher.MatchMatrix> revMatchers = revRange(0, ranges.size())//
-                .mapToObj(ranges::get)//
-                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))//
-                .filter(m -> loc > m.workingRange.getFirst())//
+        List<FuzzyLineMatcher.MatchMatrix> revMatchers = revRange(0, ranges.size())
+                .mapToObj(ranges::get)
+                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))
+                .filter(m -> loc > m.workingRange.getFirst())
                 .collect(Collectors.toList());
 
         int warnDist = offsetWarnDistance(wmPattern.size(), wmText.size());

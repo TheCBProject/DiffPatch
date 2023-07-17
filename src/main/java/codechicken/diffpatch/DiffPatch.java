@@ -41,51 +41,51 @@ public class DiffPatch {
 
         //Diff specific
         OptionSpec<Void> doDiffOpt = parser.acceptsAll(asList("d", "diff"), "Does a Diff operation.");
-        OptionSpec<Void> autoHeaderOpt = parser.acceptsAll(asList("h", "auto-header"), "Enables the generation of auto-headers. Using _ as the start2 index.")//
+        OptionSpec<Void> autoHeaderOpt = parser.acceptsAll(asList("h", "auto-header"), "Enables the generation of auto-headers. Using _ as the start2 index.")
                 .availableIf(doDiffOpt);
-        OptionSpec<Integer> contextOpt = parser.acceptsAll(asList("c", "context"), "Number of context lines to generate in diffs.")//
-                .availableIf(doDiffOpt)//
-                .withRequiredArg()//
-                .ofType(Integer.class)//
+        OptionSpec<Integer> contextOpt = parser.acceptsAll(asList("c", "context"), "Number of context lines to generate in diffs.")
+                .availableIf(doDiffOpt)
+                .withRequiredArg()
+                .ofType(Integer.class)
                 .defaultsTo(Differ.DEFAULT_CONTEXT);
 
         //Shared
-        OptionSpec<Path> outputOpt = parser.acceptsAll(asList("o", "output"), "Sets the output path.")//
-                .withRequiredArg()//
+        OptionSpec<Path> outputOpt = parser.acceptsAll(asList("o", "output"), "Sets the output path.")
+                .withRequiredArg()
                 .withValuesConvertedBy(new PathConverter());
-        OptionSpec<ArchiveFormat> archiveOpt = parser.acceptsAll(asList("A", "archive"), "Treat output as an archive. Allows printing multi-output to STDOUT.")//
-                .withRequiredArg()//
+        OptionSpec<ArchiveFormat> archiveOpt = parser.acceptsAll(asList("A", "archive"), "Treat output as an archive. Allows printing multi-output to STDOUT.")
+                .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
 
         //Patch specific
         OptionSpec<Void> doPatchOpt = parser.acceptsAll(asList("p", "patch"), "Does a Patch operation.");
-        OptionSpec<Path> rejectOpt = parser.acceptsAll(asList("r", "reject"), "Saves patch rejects to the specified path / archive")//
-                .availableIf(doPatchOpt)//
-                .withRequiredArg()//
+        OptionSpec<Path> rejectOpt = parser.acceptsAll(asList("r", "reject"), "Saves patch rejects to the specified path / archive")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
                 .withValuesConvertedBy(new PathConverter());
-        OptionSpec<ArchiveFormat> rejectArchiveOpt = parser.acceptsAll(asList("H", "archive-rejects"), "Treat reject output as an archive.")//
-                .availableIf(doPatchOpt)//
-                .withRequiredArg()//
+        OptionSpec<ArchiveFormat> rejectArchiveOpt = parser.acceptsAll(asList("H", "archive-rejects"), "Treat reject output as an archive.")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
-        OptionSpec<Float> fuzzOpt = parser.acceptsAll(asList("f", "fuzz"), "The minimum fuzz match quality, anything lower will be treated as a failure.")//
-                .availableIf(doPatchOpt)//
-                .withRequiredArg()//
-                .ofType(Float.class)//
+        OptionSpec<Float> fuzzOpt = parser.acceptsAll(asList("f", "fuzz"), "The minimum fuzz match quality, anything lower will be treated as a failure.")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
+                .ofType(Float.class)
                 .defaultsTo(FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE);
-        OptionSpec<Integer> offsetOpt = parser.acceptsAll(asList("O", "offset"), "The max line offset allowed for fuzzy matching, larger than this will be treated as a failure.")//
-                .availableIf(doPatchOpt)//
-                .withRequiredArg()//
-                .ofType(Integer.class)//
+        OptionSpec<Integer> offsetOpt = parser.acceptsAll(asList("O", "offset"), "The max line offset allowed for fuzzy matching, larger than this will be treated as a failure.")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
+                .ofType(Integer.class)
                 .defaultsTo(FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET);
-        OptionSpec<PatchMode> modeOpt = parser.acceptsAll(asList("m", "mode"), "The desired patching mode.")//
-                .availableIf(doPatchOpt)//
-                .withRequiredArg()//
-                .withValuesConvertedBy(new PatchModeValueConverter())//
+        OptionSpec<PatchMode> modeOpt = parser.acceptsAll(asList("m", "mode"), "The desired patching mode.")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
+                .withValuesConvertedBy(new PatchModeValueConverter())
                 .defaultsTo(PatchMode.EXACT);
-        OptionSpec<String> patchPrefix = parser.acceptsAll(asList("P", "prefix"), "Prefix path for reading patches from patches input.")//
-                .availableIf(doPatchOpt)//
-                .withRequiredArg()//
-                .ofType(String.class)//
+        OptionSpec<String> patchPrefix = parser.acceptsAll(asList("P", "prefix"), "Prefix path for reading patches from patches input.")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
+                .ofType(String.class)
                 .defaultsTo("");
 
         OptionSet optSet = parser.parse(args);

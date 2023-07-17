@@ -274,13 +274,13 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return Collections.emptyList();
         }
         if (verbose || this.summary) {
-            long added = patchFile.patches.stream()//
-                    .flatMap(e -> e.diffs.stream())//
-                    .filter(e -> e.op == Operation.INSERT)//
+            long added = patchFile.patches.stream()
+                    .flatMap(e -> e.diffs.stream())
+                    .filter(e -> e.op == Operation.INSERT)
                     .count();
-            long removed = patchFile.patches.stream()//
-                    .flatMap(e -> e.diffs.stream())//
-                    .filter(e -> e.op == Operation.DELETE)//
+            long removed = patchFile.patches.stream()
+                    .flatMap(e -> e.diffs.stream())
+                    .filter(e -> e.op == Operation.DELETE)
                     .count();
             if (this.summary) {
                 summary.addedLines += added;
