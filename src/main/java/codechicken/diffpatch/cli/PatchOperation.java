@@ -459,7 +459,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
     public static class Builder {
 
-        private static final Consumer<PrintStream> NULL_CALLBACK = e -> {};
+        private static final Consumer<PrintStream> NULL_CALLBACK = e -> { };
         private static final PrintStream NULL_STREAM = new PrintStream(NullOutputStream.INSTANCE);
 
         private PrintStream logger = NULL_STREAM;

@@ -16,7 +16,8 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import static codechicken.diffpatch.util.Utils.*;
+import static codechicken.diffpatch.util.Utils.indexChildren;
+import static codechicken.diffpatch.util.Utils.makeParentDirs;
 
 /**
  * Handles doing a Diff operation from the CLI.
@@ -324,7 +325,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
 
     public static class Builder {
 
-        private static final Consumer<PrintStream> NULL_CALLBACK = e -> {};
+        private static final Consumer<PrintStream> NULL_CALLBACK = e -> { };
         private static final PrintStream NULL_STREAM = new PrintStream(NullOutputStream.INSTANCE);
 
         private PrintStream logger = NULL_STREAM;
