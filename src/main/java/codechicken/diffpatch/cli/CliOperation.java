@@ -1,5 +1,7 @@
 package codechicken.diffpatch.cli;
 
+import codechicken.diffpatch.util.LogLevel;
+
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.function.Consumer;
@@ -10,14 +12,14 @@ import java.util.function.Consumer;
 public abstract class CliOperation<T> {
 
     protected final PrintStream logger;
+    protected final LogLevel level;
 
     private final Consumer<PrintStream> helpCallback;
-    protected boolean verbose;
 
-    protected CliOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose) {
+    protected CliOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback) {
         this.logger = logger;
+        this.level = level;
         this.helpCallback = helpCallback;
-        this.verbose = verbose;
     }
 
     public abstract Result<T> operate() throws IOException;
@@ -26,13 +28,9 @@ public abstract class CliOperation<T> {
         helpCallback.accept(logger);
     }
 
-    public final void log(String str, Object... args) {
-        logger.println(String.format(str, args));
-    }
-
-    public final void verbose(String str, Object... args) {
-        if (verbose) {
-            log(str, args);
+    public final void log(LogLevel level, String str, Object... args) {
+        if (this.level.shouldLog(level)) {
+            logger.println(String.format(str, args));
         }
     }
 

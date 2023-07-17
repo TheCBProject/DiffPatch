@@ -16,6 +16,7 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static codechicken.diffpatch.util.LogLevel.*;
 import static codechicken.diffpatch.util.Utils.indexChildren;
 import static codechicken.diffpatch.util.Utils.makeParentDirs;
 
@@ -36,8 +37,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     private final OutputPath outputPath;
     private final String lineEnding;
 
-    private DiffOperation(PrintStream logger, Consumer<PrintStream> helpCallback, boolean verbose, boolean summary, InputPath aPath, InputPath bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, OutputPath outputPath, String lineEnding) {
-        super(logger, helpCallback, verbose);
+    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath aPath, InputPath bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, OutputPath outputPath, String lineEnding) {
+        super(logger, level, helpCallback);
         this.summary = summary;
         this.aPath = aPath;
         this.bPath = bPath;
@@ -56,11 +57,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     @Override
     public Result<DiffSummary> operate() throws IOException {
         if (!aPath.exists()) {
-            log("Err: File A doesn't exist.");
+            log(ERROR, "Err: File A doesn't exist.");
             return new Result<>(-1);
         }
         if (!bPath.exists()) {
-            log("Err: File B doesn't exist.");
+            log(ERROR, "Err: File B doesn't exist.");
             return new Result<>(-1);
         }
 
@@ -69,12 +70,12 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         //If inputs are both files, and no format is set, we are diffing singular files.
         if (aPath.isFile() && bPath.isFile() && aPath.getFormat() == null && bPath.getFormat() == null) {
             if (outputPath.getFormat() != null) {
-                log("Err: Can't specify output format when diffing regular files.");
+                log(ERROR, "Err: Can't specify output format when diffing regular files.");
                 printHelp();
                 return new Result<>(-1);
             }
             if (outputPath.getType().isPath() && Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
-                log("Err: Output already exists and is not a file.");
+                log(ERROR, "Err: Output already exists and is not a file.");
                 printHelp();
                 return new Result<>(-1);
             }
@@ -95,13 +96,13 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         if (outputPath.getType().isPath()) {
             if (outputPath.getFormat() != null) {
                 if (Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
-                    log("Err: Output already exists and is not a file.");
+                    log(ERROR, "Err: Output already exists and is not a file.");
                     printHelp();
                     return new Result<>(-1);
                 }
             } else {
                 if (Files.exists(outputPath.toPath()) && !Files.isDirectory(outputPath.toPath())) {
-                    log("Err: Output already exists and is not a directory.");
+                    log(ERROR, "Err: Output already exists and is not a directory.");
                     printHelp();
                     return new Result<>(-1);
                 }
@@ -111,12 +112,12 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         //If both inputs are files at this point, must be archives.
         if (aPath.isFile() && bPath.isFile()) {
             if (aPath.getFormat() == null) {
-                log("Err: File A is in an unknown archive format.");
+                log(ERROR, "Err: File A is in an unknown archive format.");
                 printHelp();
                 return new Result<>(-1);
             }
             if (bPath.getFormat() == null) {
-                log("Err: File B is in an unknown archive format.");
+                log(ERROR, "Err: File B is in an unknown archive format.");
                 printHelp();
                 return new Result<>(-1);
             }
@@ -140,7 +141,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             LinesReader bFunc;
             if (!aPath.isFile()) {
                 if (bPath.getFormat() == null) {
-                    log("Err: File B is in an unknown format, whilst File A is a directory.");
+                    log(ERROR, "Err: File B is in an unknown format, whilst File A is a directory.");
                     printHelp();
                     return new Result<>(-1);
                 }
@@ -154,7 +155,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                 }
             } else {
                 if (aPath.getFormat() == null) {
-                    log("Err: File A is in an unknown format, whilst File B is a directory.");
+                    log(ERROR, "Err: File A is in an unknown format, whilst File B is a directory.");
                     printHelp();
                     return new Result<>(-1);
                 }
@@ -224,7 +225,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                     summary.unchangedFiles++;
                 }
             } catch (IOException e) {
-                verbose("Failed to read file: %s", file);
+                log(ERROR, "Failed to read file: %s", file);
             }
         }
         for (String file : common) {
@@ -241,7 +242,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                     summary.unchangedFiles++;
                 }
             } catch (IOException e) {
-                verbose("Failed to read file: %s", file);
+                log(ERROR, "Failed to read file: %s", file);
             }
         }
         for (String file : removed) {
@@ -257,7 +258,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                     summary.unchangedFiles++;
                 }
             } catch (IOException e) {
-                verbose("Failed to read file: %s", file);
+                log(ERROR, "Failed to read file: %s", file);
             }
         }
     }
@@ -275,28 +276,23 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             patchFile.patches = differ.makePatches(aLines, bLines, context, true);
         }
         if (patchFile.patches.isEmpty()) {
-            if (verbose) {
-                verbose("%s -> %s\n No changes.", aName, bName);
-            }
+            log(DEBUG, "%s -> %s\n No changes.", aName, bName);
             return Collections.emptyList();
         }
-        if (verbose || this.summary) {
-            long added = patchFile.patches.stream()
-                    .flatMap(e -> e.diffs.stream())
-                    .filter(e -> e.op == Operation.INSERT)
-                    .count();
-            long removed = patchFile.patches.stream()
-                    .flatMap(e -> e.diffs.stream())
-                    .filter(e -> e.op == Operation.DELETE)
-                    .count();
-            if (this.summary) {
-                summary.addedLines += added;
-                summary.removedLines += removed;
-            }
-            if (verbose) {
-                verbose("%s -> %s\n %d Added.\n %d Removed.", aName, bName, added, removed);
-            }
+        long added = patchFile.patches.stream()
+                .flatMap(e -> e.diffs.stream())
+                .filter(e -> e.op == Operation.INSERT)
+                .count();
+        long removed = patchFile.patches.stream()
+                .flatMap(e -> e.diffs.stream())
+                .filter(e -> e.op == Operation.DELETE)
+                .count();
+        if (this.summary) {
+            summary.addedLines += added;
+            summary.removedLines += removed;
         }
+        log(this.summary ? INFO : DEBUG, "%s -> %s\n %d Added.\n %d Removed.", aName, bName, added, removed);
+
         return patchFile.toLines(autoHeader);
     }
 
@@ -336,7 +332,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
 
         private PrintStream logger = NULL_STREAM;
         private Consumer<PrintStream> helpCallback = NULL_CALLBACK;
-        private boolean verbose;
+        private LogLevel level = LogLevel.WARN;
         private boolean summary;
         private InputPath aPath;
         private InputPath bPath;
@@ -364,8 +360,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return this;
         }
 
-        public Builder verbose(boolean verbose) {
-            this.verbose = verbose;
+        public Builder level(LogLevel level) {
+            this.level = level;
             return this;
         }
 
@@ -468,7 +464,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             if (outputPath == null) {
                 throw new IllegalStateException("output not set.");
             }
-            return new DiffOperation(logger, helpCallback, verbose, summary, aPath, bPath, aPrefix, bPrefix, autoHeader, context, outputPath, lineEnding);
+            return new DiffOperation(logger, level, helpCallback, summary, aPath, bPath, aPrefix, bPrefix, autoHeader, context, outputPath, lineEnding);
         }
 
     }

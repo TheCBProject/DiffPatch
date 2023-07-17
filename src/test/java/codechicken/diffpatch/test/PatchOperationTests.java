@@ -2,6 +2,7 @@ package codechicken.diffpatch.test;
 
 import codechicken.diffpatch.cli.CliOperation;
 import codechicken.diffpatch.cli.PatchOperation;
+import codechicken.diffpatch.util.LogLevel;
 import codechicken.diffpatch.util.Utils;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
@@ -35,6 +36,8 @@ public class PatchOperationTests {
         copyResource("/data/src/PatchFile.java", cmp.resolve("PatchFile.java"));
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -57,6 +60,8 @@ public class PatchOperationTests {
         copyResource("/data/orig/PatchFile.java", orig.resolve("PatchFile.java"));
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -80,6 +85,8 @@ public class PatchOperationTests {
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         OutputStream os = Files.newOutputStream(src);
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(os, ArchiveFormat.ZIP)
                 .patchesPath(patches)
@@ -104,6 +111,8 @@ public class PatchOperationTests {
         copyResource("/data/src/PatchFile.java", orig.resolve("PatchFile.java"));//Use src to simulate rejects
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -125,6 +134,8 @@ public class PatchOperationTests {
         copyResource("/data/src/PatchFile.java", orig.resolve("PatchFile.java"));//Use src to simulate rejects
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -150,6 +161,8 @@ public class PatchOperationTests {
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         OutputStream os = Files.newOutputStream(rejects);
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -176,6 +189,8 @@ public class PatchOperationTests {
         }
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -197,6 +212,8 @@ public class PatchOperationTests {
         }
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(Files.readAllBytes(orig), ArchiveFormat.ZIP)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -218,6 +235,8 @@ public class PatchOperationTests {
             copyResource("/data/patches/PatchFile.java.patch", writer, "PatchFile.java.patch");
         }
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
@@ -239,6 +258,8 @@ public class PatchOperationTests {
             copyResource("/data/patches/PatchFile.java.patch", writer, "PatchFile.java.patch");
         }
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(Files.readAllBytes(patches), ArchiveFormat.ZIP)

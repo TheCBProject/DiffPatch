@@ -3,14 +3,12 @@ package codechicken.diffpatch;
 import codechicken.diffpatch.cli.*;
 import codechicken.diffpatch.diff.Differ;
 import codechicken.diffpatch.match.FuzzyLineMatcher;
-import codechicken.diffpatch.util.InputPath;
-import codechicken.diffpatch.util.OutputPath;
-import codechicken.diffpatch.util.PatchMode;
-import codechicken.diffpatch.util.Utils;
+import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
+import joptsimple.util.EnumConverter;
 import joptsimple.util.PathConverter;
 
 import java.io.IOException;
@@ -36,7 +34,12 @@ public class DiffPatch {
 
         //Utility
         OptionSpec<Void> helpOpt = parser.acceptsAll(asList("h", "help"), "Prints this help.").forHelp();
-        OptionSpec<Void> verboseOpt = parser.acceptsAll(asList("v", "verbose"), "Prints more stuff.");
+        OptionSpec<Void> verboseOpt = parser.acceptsAll(asList("v", "verbose"), "Prints more stuff. Alias for --log-level ALL");
+        OptionSpec<LogLevel> logLevelOpt = parser.acceptsAll(asList("l", "log-level"), "Set the Logging level.")
+                .availableUnless(verboseOpt)
+                .withRequiredArg()
+                .withValuesConvertedBy(new EnumConverter<LogLevel>(LogLevel.class) { })
+                .defaultsTo(LogLevel.INFO);
         OptionSpec<Void> summaryOpt = parser.acceptsAll(asList("s", "summary"), "Prints a changes summary at the end.");
 
         //Diff specific
@@ -93,7 +96,14 @@ public class DiffPatch {
             parser.printHelpOn(logger);
             return -1;
         }
-        boolean verbose = optSet.has(verboseOpt);
+
+        LogLevel level = LogLevel.INFO;
+        if (optSet.has(logLevelOpt)) {
+            level = optSet.valueOf(logLevelOpt);
+        } else if (optSet.has(summaryOpt)) {
+            level = LogLevel.DEBUG;
+        }
+
         boolean summary = optSet.has(summaryOpt);
         List<String> arguments = optSet.valuesOf(nonOptions);
 
@@ -129,7 +139,7 @@ public class DiffPatch {
                     .aPath(a, ArchiveFormat.findFormat(a.getFileName()))
                     .bPath(b, ArchiveFormat.findFormat(b.getFileName()))
                     .outputPath(outputPath)
-                    .verbose(verbose)
+                    .level(level)
                     .summary(summary)
                     .autoHeader(optSet.has(autoHeaderOpt))
                     .context(optSet.valueOf(contextOpt))
@@ -167,7 +177,7 @@ public class DiffPatch {
             operation = PatchOperation.builder()
                     .logTo(logger)
                     .helpCallback(Utils.sneakC(parser::printHelpOn))
-                    .verbose(verbose)
+                    .level(level)
                     .summary(summary)
                     .basePath(basePath)
                     .patchesPath(patchesPath)

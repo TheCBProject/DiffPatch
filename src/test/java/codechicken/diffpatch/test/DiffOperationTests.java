@@ -2,6 +2,7 @@ package codechicken.diffpatch.test;
 
 import codechicken.diffpatch.cli.CliOperation;
 import codechicken.diffpatch.cli.DiffOperation;
+import codechicken.diffpatch.util.LogLevel;
 import codechicken.diffpatch.util.Utils;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
@@ -35,6 +36,8 @@ public class DiffOperationTests {
         copyResource("/data/orig/PatchFile.java", orig.resolve("PatchFile.java"));
         copyResource("/data/src/PatchFile.java", src.resolve("PatchFile.java"));
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
                 .outputPath(patches)
@@ -54,6 +57,8 @@ public class DiffOperationTests {
         copyResource("/data/orig/PatchFile.java", orig.resolve("PatchFile.java"));
         copyResource("/data/src/PatchFile.java", src.resolve("PatchFile.java"));
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
                 .outputPath(patches)
@@ -77,6 +82,8 @@ public class DiffOperationTests {
         copyResource("/data/src/PatchFile.java", src.resolve("PatchFile.java"));
         OutputStream os = Files.newOutputStream(patches);
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
                 .outputPath(os, ArchiveFormat.ZIP)
@@ -102,6 +109,8 @@ public class DiffOperationTests {
         }
         copyResource("/data/src/PatchFile.java", src.resolve("PatchFile.java"));
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
                 .outputPath(patches)
@@ -126,6 +135,8 @@ public class DiffOperationTests {
         }
         copyResource("/data/src/PatchFile.java", src.resolve("PatchFile.java"));
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .aPath(Files.readAllBytes(orig), ArchiveFormat.ZIP)
                 .bPath(src)
                 .outputPath(patches)
@@ -150,6 +161,8 @@ public class DiffOperationTests {
             copyResource("/data/src/PatchFile.java", writer, "PatchFile.java");
         }
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
                 .outputPath(patches)
@@ -174,6 +187,8 @@ public class DiffOperationTests {
             copyResource("/data/src/PatchFile.java", writer, "PatchFile.java");
         }
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(Files.readAllBytes(src), ArchiveFormat.ZIP)
                 .outputPath(patches)
