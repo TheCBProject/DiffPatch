@@ -6,6 +6,7 @@ import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
+import net.covers1624.quack.collection.FastStream;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -17,13 +18,11 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static codechicken.diffpatch.util.LogLevel.*;
 import static codechicken.diffpatch.util.Utils.indexChildren;
 import static net.covers1624.quack.io.IOUtils.makeParents;
 import static net.covers1624.quack.util.SneakyUtils.sneak;
-import static net.covers1624.quack.util.SneakyUtils.sneaky;
 import static org.apache.commons.lang3.StringUtils.appendIfMissing;
 import static org.apache.commons.lang3.StringUtils.removeStart;
 
@@ -284,9 +283,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     }
 
     public boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, List<String>> bFunc, Function<String, List<String>> pFunc, float minFuzz, int maxOffset, PatchMode mode) {
-        Map<String, PatchFile> patchFiles = pEntries.stream()
+        Map<String, PatchFile> patchFiles = FastStream.of(pEntries)
                 .map(e -> PatchFile.fromLines(e, pFunc.apply(e), true))
-                .collect(Collectors.toMap(e -> {
+                .toMap(e -> {
                             if (e.patchedPath == null) {
                                 return e.name.substring(0, e.name.lastIndexOf(".patch"));
                             } else if (e.patchedPath.startsWith("b/")) {
@@ -296,11 +295,12 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                             }
                             return e.patchedPath;
                         },
-                        Function.identity()));
+                        Function.identity()
+                );
 
-        List<String> notPatched = bEntries.stream().filter(e -> !patchFiles.containsKey(e)).sorted().collect(Collectors.toList());
-        List<String> patchedFiles = bEntries.stream().filter(patchFiles::containsKey).sorted().collect(Collectors.toList());
-        List<String> removedFiles = patchFiles.keySet().stream().filter(e -> !bEntries.contains(e)).sorted().collect(Collectors.toList());
+        List<String> notPatched = FastStream.of(bEntries).filter(e -> !patchFiles.containsKey(e)).sorted().toList();
+        List<String> patchedFiles = FastStream.of(bEntries).filter(patchFiles::containsKey).sorted().toList();
+        List<String> removedFiles = FastStream.of(patchFiles.keySet()).filter(e -> !bEntries.contains(e)).sorted().toList();
 
         boolean result = true;
         for (String file : notPatched) {
@@ -331,7 +331,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     public boolean doPatch(FileCollector outputCollector, FileCollector rejectCollector, PatchesSummary summary, String baseName, List<String> base, PatchFile patchFile, float minFuzz, int maxOffset, PatchMode mode) {
         Patcher patcher = new Patcher(patchFile, base, minFuzz, maxOffset);
         log(DEBUG, "Patching: " + baseName);
-        List<Patcher.Result> results = patcher.patch(mode).collect(Collectors.toList());
+        List<Patcher.Result> results = patcher.patch(mode);
         List<String> rejectLines = new ArrayList<>();
         boolean first = true;
         for (int i = 0; i < results.size(); i++) {
@@ -369,7 +369,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 first = false;
                 rejectLines.add("++++ REJECTED HUNK: " + (i + 1));
                 rejectLines.add(result.patch.getHeader());
-                result.patch.diffs.stream().map(Diff::toString).forEach(rejectLines::add);
+                FastStream.of(result.patch.diffs).map(Diff::toString).forEach(rejectLines::add);
                 rejectLines.add("++++ END HUNK");
             } else {
                 log(DEBUG, " Hunk %d: %s", i, result.summary());
@@ -490,6 +490,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     }
 
     public static class Builder {
+
         private static final PrintStream NULL_STREAM = new PrintStream(NullOutputStream.INSTANCE);
 
         private PrintStream logger = NULL_STREAM;

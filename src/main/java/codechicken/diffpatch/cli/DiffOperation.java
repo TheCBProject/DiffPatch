@@ -6,6 +6,7 @@ import codechicken.diffpatch.util.*;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
+import net.covers1624.quack.collection.FastStream;
 import net.covers1624.quack.io.IOUtils;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
@@ -17,7 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 import static codechicken.diffpatch.util.LogLevel.*;
 import static codechicken.diffpatch.util.Utils.indexChildren;
@@ -209,9 +209,9 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     }
 
     public void doDiff(FileCollector patches, DiffSummary summary, Set<String> aEntries, Set<String> bEntries, LinesReader aFunc, LinesReader bFunc, int context, boolean autoHeader) {
-        List<String> added = bEntries.stream().filter(e -> !aEntries.contains(e)).sorted().collect(Collectors.toList());
-        List<String> common = aEntries.stream().filter(bEntries::contains).sorted().collect(Collectors.toList());
-        List<String> removed = aEntries.stream().filter(e -> !bEntries.contains(e)).sorted().collect(Collectors.toList());
+        List<String> added = FastStream.of(bEntries).filter(e -> !aEntries.contains(e)).sorted().toList();
+        List<String> common = FastStream.of(bEntries).filter(bEntries::contains).sorted().toList();
+        List<String> removed = FastStream.of(aEntries).filter(e -> !bEntries.contains(e)).sorted().toList();
         String aPrefix = StringUtils.appendIfMissing(StringUtils.isEmpty(this.aPrefix) ? "a" : this.aPrefix, "/");
         String bPrefix = StringUtils.appendIfMissing(StringUtils.isEmpty(this.bPrefix) ? "b" : this.bPrefix, "/");
         for (String file : added) {
@@ -281,12 +281,12 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             log(DEBUG, "%s -> %s\n No changes.", aName, bName);
             return Collections.emptyList();
         }
-        long added = patchFile.patches.stream()
-                .flatMap(e -> e.diffs.stream())
+        long added = FastStream.of(patchFile.patches)
+                .flatMap(e -> e.diffs)
                 .filter(e -> e.op == Operation.INSERT)
                 .count();
-        long removed = patchFile.patches.stream()
-                .flatMap(e -> e.diffs.stream())
+        long removed = FastStream.of(patchFile.patches)
+                .flatMap(e -> e.diffs)
                 .filter(e -> e.op == Operation.DELETE)
                 .count();
         if (this.summary) {
@@ -328,6 +328,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     }
 
     public static class Builder {
+
         private static final PrintStream NULL_STREAM = new PrintStream(NullOutputStream.INSTANCE);
 
         private PrintStream logger = NULL_STREAM;

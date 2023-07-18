@@ -2,9 +2,9 @@ package codechicken.diffpatch.diff;
 
 import codechicken.diffpatch.match.FuzzyLineMatcher;
 import codechicken.diffpatch.util.CharRepresenter;
+import net.covers1624.quack.collection.FastStream;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Created by covers1624 on 15/5/21.
@@ -28,8 +28,8 @@ public class LineMatchedDiffer extends PatienceDiffer {
     @Override
     public int[] match(List<String> lines1, List<String> lines2) {
         int[] matches = super.match(lines1, lines2);
-        wordModeLines1 = lines1.stream().map(charRep::wordsToChars).collect(Collectors.toList());
-        wordModeLines2 = lines2.stream().map(charRep::wordsToChars).collect(Collectors.toList());
+        wordModeLines1 = FastStream.of(lines1).map(charRep::wordsToChars).toList();
+        wordModeLines2 = FastStream.of(lines2).map(charRep::wordsToChars).toList();
         FuzzyLineMatcher matcher = new FuzzyLineMatcher();
         matcher.maxMatchOffset = maxMatchOffset;
         matcher.minMatchScore = minMatchScore;

@@ -10,8 +10,8 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Created by covers1624 on 25/8/20.
@@ -156,7 +156,12 @@ public abstract class InputPath {
         @Override
         public List<String> readAllLines() throws IOException {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(open()))) {
-                return reader.lines().collect(Collectors.toList());
+                String str;
+                List<String> lines = new ArrayList<>();
+                while ((str = reader.readLine()) != null) {
+                    lines.add(str);
+                }
+                return lines;
             }
         }
 

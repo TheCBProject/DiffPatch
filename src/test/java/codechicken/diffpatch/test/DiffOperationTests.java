@@ -3,7 +3,6 @@ package codechicken.diffpatch.test;
 import codechicken.diffpatch.cli.CliOperation;
 import codechicken.diffpatch.cli.DiffOperation;
 import codechicken.diffpatch.util.LogLevel;
-import codechicken.diffpatch.util.Utils;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;

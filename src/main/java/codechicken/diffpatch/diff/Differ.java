@@ -5,10 +5,10 @@ import codechicken.diffpatch.util.CharRepresenter;
 import codechicken.diffpatch.util.Diff;
 import codechicken.diffpatch.util.Operation;
 import codechicken.diffpatch.util.Patch;
+import net.covers1624.quack.collection.FastStream;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public abstract class Differ {
 
@@ -65,7 +65,7 @@ public abstract class Differ {
 
     private static Patch make(List<String> lines, Operation op) {
         Patch patch = new Patch();
-        patch.diffs = lines.stream().map(l -> new Diff(op, l)).collect(Collectors.toList());
+        patch.diffs = FastStream.of(lines).map(l -> new Diff(op, l)).toList();
         patch.recalculateLength();
         return patch;
     }

@@ -1,6 +1,5 @@
 package codechicken.diffpatch.util.archiver;
 
-import codechicken.diffpatch.util.Utils;
 import net.covers1624.quack.io.IOUtils;
 
 import java.io.Closeable;

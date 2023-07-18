@@ -1,9 +1,10 @@
 package codechicken.diffpatch.util;
 
+import net.covers1624.quack.collection.FastStream;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.function.Function;
 
 /**
  * Also known as a Hunk
@@ -22,7 +23,7 @@ public class Patch {
     }
 
     public Patch(Patch other) {
-        this.diffs = other.diffs.stream().map(Diff::new).collect(Collectors.toList());
+        this.diffs = FastStream.of(other.diffs).map(Diff::new).toList();
         this.start1 = other.start1;
         this.start2 = other.start2;
         this.length1 = other.length1;
@@ -165,8 +166,10 @@ public class Patch {
     //@formatter:off
     public String getHeader() { return String.format("@@ -%d,%d +%d,%d @@", start1 + 1, length1, start2 + 1, length2); }
     public String getAutoHeader() { return String.format("@@ -%d,%d +_,%d @@", start1 + 1, length1, length2); }
-    public Stream<String> getContextLines() { return diffs.stream().filter(e -> e.op != Operation.INSERT).map(e -> e.text); }
-    public Stream<String> getPatchedLines() { return diffs.stream().filter(e -> e.op != Operation.DELETE).map(e -> e.text); }
+    public List<String> getContextLines() { return getContextLines(Function.identity()); }
+    public List<String> getContextLines(Function<String, String> f) { return FastStream.of(diffs).filter(e -> e.op != Operation.INSERT).map(e -> f.apply(e.text)).toList(); }
+    public List<String> getPatchedLines() { return getPatchedLines(Function.identity()); }
+    public List<String> getPatchedLines(Function<String, String> f) { return FastStream.of(diffs).filter(e -> e.op != Operation.DELETE).map(e -> f.apply(e.text)).toList(); }
     public LineRange getRange1() { return LineRange.fromStartLen(start1, length1); }
     public LineRange getRange2() { return LineRange.fromStartLen(start2, length2); }
     public LineRange getTrimmedRange1() { return trimRange(getRange1()); }
@@ -175,6 +178,6 @@ public class Patch {
 
     @Override
     public String toString() {
-        return getHeader() + "\n" + diffs.stream().map(Diff::toString).collect(Collectors.joining("\n"));
+        return getHeader() + "\n" + FastStream.of(diffs).map(Diff::toString).join("\n");
     }
 }

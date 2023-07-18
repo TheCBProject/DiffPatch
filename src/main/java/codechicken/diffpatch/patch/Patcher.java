@@ -2,13 +2,12 @@ package codechicken.diffpatch.patch;
 
 import codechicken.diffpatch.match.FuzzyLineMatcher;
 import codechicken.diffpatch.util.*;
+import net.covers1624.quack.collection.ColUtils;
+import net.covers1624.quack.collection.FastStream;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 public class Patcher {
 
@@ -43,7 +42,7 @@ public class Patcher {
     }
 
     public Patcher(PatchFile patchFile, List<String> lines, CharRepresenter charRep, float minFuzz, int maxOffset) {
-        this.patches = patchFile.patches.stream().map(WorkingPatch::new).collect(Collectors.toList());
+        this.patches = FastStream.of(patchFile.patches).map(WorkingPatch::new).toList();
         this.lines = new ArrayList<>(lines);
         if (charRep == null) {
             charRep = new CharRepresenter();
@@ -53,7 +52,7 @@ public class Patcher {
         this.maxMatchOffset = maxOffset;
     }
 
-    public Stream<Result> patch(PatchMode mode) {
+    public List<Result> patch(PatchMode mode) {
         if (applied) {
             throw new RuntimeException("Already applied");
         }
@@ -77,7 +76,7 @@ public class Patcher {
             patch.result.searchOffset = searchOffset;
             searchOffset -= patch.length2 - patch.length1;
         }
-        return patches.stream().map(e -> e.result);
+        return FastStream.of(patches).map(e -> e.result).toList();
 
     }
 
@@ -94,11 +93,11 @@ public class Patcher {
             patch.wordsToChars(charRep);
         }
 
-        wmLines = lines.stream().map(charRep::wordsToChars).collect(Collectors.toList());
+        wmLines = FastStream.of(lines).map(charRep::wordsToChars).toList();
     }
 
     private Patch applyExactAt(int loc, WorkingPatch patch) {
-        if (!patch.getContextLines().collect(Collectors.toList()).containsAll(lines.subList(loc, loc + patch.length1))) {
+        if (!new HashSet<>(patch.getContextLines()).containsAll(lines.subList(loc, loc + patch.length1))) {
             throw new RuntimeException("Patch engine failure");
         }
         if (!canApplySafelyAt(loc, patch)) {
@@ -106,7 +105,7 @@ public class Patcher {
         }
 
         lines.subList(loc, loc + patch.length1).clear();
-        lines.addAll(loc, patch.getPatchedLines().collect(Collectors.toList()));
+        lines.addAll(loc, patch.getPatchedLines());
 
         //update the lineModeText
         if (lmText != null) {
@@ -119,13 +118,12 @@ public class Patcher {
             wmLines.addAll(loc, patch.wmPatched);
         }
 
-        int patchedDelta = patches.stream()
+        int patchedDelta = FastStream.of(patches)
                 .filter(e -> {
                     LineRange r = e.getKeepoutRange2();
                     return r != null && r.getEnd() <= loc;
                 })
-                .mapToInt(e -> e.getAppliedDelta().getAsInt())
-                .sum();
+                .intSum(e -> e.getAppliedDelta().getAsInt());
         Patch appliedPatch = patch;
         if (appliedPatch.start2 != loc || appliedPatch.start1 != loc - patchedDelta) {
             appliedPatch = new Patch(patch);
@@ -156,7 +154,7 @@ public class Patcher {
         }
 
         LineRange range = LineRange.fromStartLen(loc, patch.length1);
-        return patches.stream().allMatch(p -> {
+        return ColUtils.allMatch(patches, p -> {
             LineRange r = p.getKeepoutRange2();
             return r == null || !r.contains(range);
         });
@@ -168,7 +166,7 @@ public class Patcher {
             return false;
         }
 
-        if (!patch.getContextLines().collect(Collectors.toList()).containsAll(lines.subList(loc, loc + patch.length1))) {
+        if (!new HashSet<>(patch.getContextLines()).containsAll(lines.subList(loc, loc + patch.length1))) {
             return false;
         }
 
@@ -287,7 +285,14 @@ public class Patcher {
             fuzzyPatch.linesToChars(charRep);
         }
 
-        int at = Arrays.stream(match).filter(i -> i >= 0).findFirst().getAsInt(); //if the patch needs lines trimmed off it, the early match entries will be negative
+        //if the patch needs lines trimmed off it, the early match entries will be negative
+        int at = 0;
+        for (int i : match) {
+            if (i >= 0) {
+                at = i;
+                break;
+            }
+        }
         patch.succeed(PatchMode.FUZZY, applyExactAt(at, fuzzyPatch));
         patch.addOffsetResult(fuzzyPatch.start2 - loc, lines.size());
         patch.addFuzzyResult(pair.getRight());
@@ -337,7 +342,10 @@ public class Patcher {
 
     private Pair<int[], Float> findMatch(int loc, List<String> wmContext) {
         // fuzzy matching is more complex because we need to split up the patched file to only search _between_ previously applied patches
-        List<LineRange> keepoutRanges = patches.stream().map(WorkingPatch::getKeepoutRange2).filter(Objects::nonNull).collect(Collectors.toList());
+        List<LineRange> keepoutRanges = FastStream.of(patches)
+                .map(WorkingPatch::getKeepoutRange2)
+                .filter(Objects::nonNull)
+                .toList();
 
         // parts of file to search in
         List<LineRange> ranges = LineRange.fromStartLen(0, wmLines.size()).except(keepoutRanges);
@@ -351,15 +359,15 @@ public class Patcher {
         }
 
         // we're creating twice as many MatchMatrix objects as we need, incurring some wasted allocation and setup time, but it reads easier than trying to precompute all the edge cases
-        List<FuzzyLineMatcher.MatchMatrix> fwdMatchers = ranges.stream()
+        List<FuzzyLineMatcher.MatchMatrix> fwdMatchers = FastStream.of(ranges)
                 .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))
                 .filter(m -> loc < m.workingRange.getLast())
-                .collect(Collectors.toList());
-        List<FuzzyLineMatcher.MatchMatrix> revMatchers = revRange(0, ranges.size())
-                .mapToObj(ranges::get)
+                .toList();
+        List<FuzzyLineMatcher.MatchMatrix> revMatchers = FastStream.of(ranges)
+                .reversed()
                 .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))
                 .filter(m -> loc > m.workingRange.getFirst())
-                .collect(Collectors.toList());
+                .toList();
 
         int warnDist = offsetWarnDistance(wmPattern.size(), wmText.size());
         float penaltyPerLine = 1f / (10 * warnDist);
@@ -374,10 +382,6 @@ public class Patcher {
         }
 
         return Pair.of(bestMatch.get(), bestScore.get());
-    }
-
-    public static IntStream revRange(int from, int to) {
-        return IntStream.range(from, to).map(i -> to - i + from - 1);
     }
 
     // patches applying within this range (due to fuzzy matching) will cause patch reordering
@@ -455,7 +459,7 @@ public class Patcher {
     }
 
     //patch extended with implementation fields
-    public class WorkingPatch extends Patch {
+    public static class WorkingPatch extends Patch {
 
         public Result result;
         public String lmContext;
@@ -487,13 +491,13 @@ public class Patcher {
         }
 
         public void linesToChars(CharRepresenter rep) {
-            lmContext = rep.linesToChars(getContextLines().collect(Collectors.toList()));
-            lmPatched = rep.linesToChars(getPatchedLines().collect(Collectors.toList()));
+            lmContext = rep.linesToChars(getContextLines());
+            lmPatched = rep.linesToChars(getPatchedLines());
         }
 
         public void wordsToChars(CharRepresenter rep) {
-            wmContext = getContextLines().map(rep::wordsToChars).collect(Collectors.toList());
-            wmPatched = getPatchedLines().map(rep::wordsToChars).collect(Collectors.toList());
+            wmContext = getContextLines(rep::wordsToChars);
+            wmPatched = getPatchedLines(rep::wordsToChars);
         }
 
         public LineRange getKeepoutRange2() {
