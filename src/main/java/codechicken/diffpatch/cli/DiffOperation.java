@@ -38,8 +38,9 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     private final int context;
     private final OutputPath outputPath;
     private final String lineEnding;
+    private final String[] ignorePrefixes;
 
-    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath aPath, InputPath bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, OutputPath outputPath, String lineEnding) {
+    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath aPath, InputPath bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, OutputPath outputPath, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.aPath = aPath;
@@ -50,6 +51,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         this.context = context;
         this.outputPath = outputPath;
         this.lineEnding = lineEnding;
+        this.ignorePrefixes = ignorePrefixes;
     }
 
     public static Builder builder() {
@@ -127,14 +129,18 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             // Diff Archives
             try (ArchiveReader aReader = aPath.getFormat().createReader(aPath.open())) {
                 try (ArchiveReader bReader = bPath.getFormat().createReader(bPath.open())) {
-                    doDiff(patches, summary, aReader.getEntries(), bReader.getEntries(), aReader::readLines, bReader::readLines, context, autoHeader);
+                    Set<String> aIndex = filterPrefixed(aReader.getEntries(), ignorePrefixes);
+                    Set<String> bIndex = filterPrefixed(bReader.getEntries(), ignorePrefixes);
+                    doDiff(patches, summary, aIndex, bIndex, aReader::readLines, bReader::readLines, context, autoHeader);
                 }
             }
         } else if (!aPath.isFile() && !bPath.isFile()) {
             //Both inputs are directories.
-            Map<String, Path> aIndex = indexChildren(aPath.toPath());
-            Map<String, Path> bIndex = indexChildren(bPath.toPath());
-            doDiff(patches, summary, aIndex.keySet(), bIndex.keySet(), e -> Files.readAllLines(aIndex.get(e)), e -> Files.readAllLines(bIndex.get(e)), context, autoHeader);
+            Map<String, Path> aFiles = indexChildren(aPath.toPath());
+            Map<String, Path> bFiles = indexChildren(bPath.toPath());
+            Set<String> aIndex = filterPrefixed(aFiles.keySet(), ignorePrefixes);
+            Set<String> bIndex = filterPrefixed(bFiles.keySet(), ignorePrefixes);
+            doDiff(patches, summary, aIndex, bIndex, e -> Files.readAllLines(aFiles.get(e)), e -> Files.readAllLines(bFiles.get(e)), context, autoHeader);
         } else {
             //One input is a directory, other is an archive.
             Set<String> aIndex;
@@ -170,6 +176,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                 bIndex = pathIndex.keySet();
                 bFunc = e -> Files.readAllLines(pathIndex.get(e));
             }
+            aIndex = filterPrefixed(aIndex, ignorePrefixes);
+            bIndex = filterPrefixed(bIndex, ignorePrefixes);
             doDiff(patches, summary, aIndex, bIndex, aFunc, bFunc, context, autoHeader);
         }
         boolean changes = false;
@@ -298,6 +306,21 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         return patchFile.toLines(autoHeader);
     }
 
+    private static Set<String> filterPrefixed(Set<String> toFilter, String[] filters) {
+        if (filters.length == 0) return toFilter;
+
+        return FastStream.of(toFilter)
+                .filterNot(e -> {
+                    for (String s : filters) {
+                        if (e.startsWith(s)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .toSet();
+    }
+
     public static class DiffSummary {
 
         public int unchangedFiles;
@@ -343,6 +366,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         private String aPrefix = "a/";
         private String bPrefix = "b/";
         private String lineEnding = System.lineSeparator();
+
+        private final List<String> ignorePrefixes = new LinkedList<>();
 
         private Builder() {
         }
@@ -455,6 +480,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return this;
         }
 
+        public Builder ignorePrefix(String prefix) {
+            ignorePrefixes.add(prefix);
+            return this;
+        }
+
         public DiffOperation build() {
             if (aPath == null) {
                 throw new IllegalStateException("aPath not set.");
@@ -465,7 +495,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             if (outputPath == null) {
                 throw new IllegalStateException("output not set.");
             }
-            return new DiffOperation(logger, level, helpCallback, summary, aPath, bPath, aPrefix, bPrefix, autoHeader, context, outputPath, lineEnding);
+            return new DiffOperation(logger, level, helpCallback, summary, aPath, bPath, aPrefix, bPrefix, autoHeader, context, outputPath, lineEnding, ignorePrefixes.toArray(new String[0]));
         }
 
     }
