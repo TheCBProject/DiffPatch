@@ -210,7 +210,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
 
     public void doDiff(FileCollector patches, DiffSummary summary, Set<String> aEntries, Set<String> bEntries, LinesReader aFunc, LinesReader bFunc, int context, boolean autoHeader) {
         List<String> added = FastStream.of(bEntries).filter(e -> !aEntries.contains(e)).sorted().toList();
-        List<String> common = FastStream.of(bEntries).filter(bEntries::contains).sorted().toList();
+        List<String> common = FastStream.of(aEntries).filter(bEntries::contains).sorted().toList();
         List<String> removed = FastStream.of(aEntries).filter(e -> !bEntries.contains(e)).sorted().toList();
         String aPrefix = StringUtils.appendIfMissing(StringUtils.isEmpty(this.aPrefix) ? "a" : this.aPrefix, "/");
         String bPrefix = StringUtils.appendIfMissing(StringUtils.isEmpty(this.bPrefix) ? "b" : this.bPrefix, "/");
