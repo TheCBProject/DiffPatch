@@ -3,10 +3,12 @@ package codechicken.diffpatch.cli;
 import codechicken.diffpatch.match.FuzzyLineMatcher;
 import codechicken.diffpatch.patch.Patcher;
 import codechicken.diffpatch.util.*;
+import codechicken.diffpatch.util.FileCollector.CollectedEntry;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
 import net.covers1624.quack.collection.FastStream;
+import net.covers1624.quack.io.IOUtils;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -113,15 +115,16 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
             PatchFile patchFile = PatchFile.fromLines(patchesPath.toString(), patchesPath.readAllLines(), true);
             boolean success = doPatch(outputCollector, rejectCollector, summary, basePath.toString(), basePath.readAllLines(), patchFile, minFuzz, maxOffset, mode);
-            List<String> output = outputCollector.getSingleFile();
-            List<String> reject = rejectCollector.getSingleFile();
-            try (PrintWriter out = new PrintWriter(outputPath.open())) {
-                out.println(String.join(lineEnding, output));
+            CollectedEntry output = outputCollector.getSingleFile();
+            CollectedEntry reject = rejectCollector.getSingleFile();
+            try (OutputStream os = outputPath.open()) {
+                os.write(output.toBytes(lineEnding, true));
+                os.flush();
             }
 
-            if (rejectsPath.exists() && !reject.isEmpty()) {
-                try (PrintWriter out = new PrintWriter(rejectsPath.open())) {
-                    out.println(String.join(lineEnding, reject + lineEnding));
+            if (reject != null && rejectsPath.exists()) {
+                try (OutputStream os = rejectsPath.open()) {
+                    os.write(reject.toBytes(lineEnding, true));
                 }
             }
             if (this.summary) {
@@ -175,8 +178,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                             summary,
                             baseReader.getEntries(),
                             patchesReader.getEntries(),
-                            sneak(baseReader::readLines),
-                            sneak(patchesReader::readLines),
+                            sneak(baseReader::getBytes),
+                            sneak(patchesReader::getBytes),
                             minFuzz,
                             maxOffset,
                             mode
@@ -194,8 +197,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                         summary,
                         baseIndex.keySet(),
                         patchIndex.keySet(),
-                        SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(baseIndex.get(e))),
-                        SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(patchIndex.get(e))),
+                        SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(baseIndex.get(e))),
+                        SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(patchIndex.get(e))),
                         minFuzz,
                         maxOffset,
                         mode
@@ -203,9 +206,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             } else {
                 //One input is a directory, the other is a file.
                 Set<String> baseIndex;
-                Function<String, List<String>> baseFunc;
+                Function<String, byte[]> baseFunc;
                 Set<String> patchIndex;
-                Function<String, List<String>> patchFunc;
+                Function<String, byte[]> patchFunc;
                 if (!basePath.isFile()) {
                     if (patchesPath.getFormat() == null) {
                         log(ERROR, "Patches file is in an unknown format, whilst Base file is a directory.");
@@ -214,11 +217,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                     }
                     Map<String, Path> pathIndex = indexChildren(basePath.toPath());
                     baseIndex = pathIndex.keySet();
-                    baseFunc = SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(pathIndex.get(e)));
+                    baseFunc = SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(pathIndex.get(e)));
                     //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
                     try (ArchiveReader reader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
                         patchIndex = reader.getEntries();
-                        patchFunc = sneak(reader::readLines);
+                        patchFunc = sneak(reader::getBytes);
                     }
                 } else {
                     if (basePath.getFormat() == null) {
@@ -228,11 +231,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                     }
                     Map<String, Path> pathIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
                     patchIndex = pathIndex.keySet();
-                    patchFunc = SneakyUtils.<String, List<String>>sneak(e -> Files.readAllLines(pathIndex.get(e)));
+                    patchFunc = SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(pathIndex.get(e)));
                     //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
                     try (ArchiveReader reader = basePath.getFormat().createReader(basePath.open())) {
                         baseIndex = reader.getEntries();
-                        baseFunc = sneak(reader::readLines);
+                        baseFunc = sneak(reader::getBytes);
                     }
                 }
                 patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchIndex, baseFunc, patchFunc, minFuzz, maxOffset, mode);
@@ -241,38 +244,34 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
         if (outputPath.getFormat() != null) {
             try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
-                for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
-                    String file = String.join(lineEnding, entry.getValue());
-                    writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
+                for (Map.Entry<String, CollectedEntry> entry : outputCollector.get().entrySet()) {
+                    writer.writeEntry(entry.getKey(), entry.getValue().toBytes(lineEnding, false));
                 }
             }
         } else {
             if (Files.exists(outputPath.toPath())) {
                 Utils.deleteFolder(outputPath.toPath());
             }
-            for (Map.Entry<String, List<String>> entry : outputCollector.get().entrySet()) {
+            for (Map.Entry<String, CollectedEntry> entry : outputCollector.get().entrySet()) {
                 Path path = outputPath.toPath().resolve(entry.getKey());
-                String file = String.join(lineEnding, entry.getValue());
-                Files.write(makeParents(path), file.getBytes(StandardCharsets.UTF_8));
+                Files.write(makeParents(path), entry.getValue().toBytes(lineEnding, false));
             }
         }
 
         if (!rejectsPath.getType().isNull()) {
             if (rejectsPath.getFormat() != null) {
                 try (ArchiveWriter writer = rejectsPath.getFormat().createWriter(rejectsPath.open())) {
-                    for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
-                        String file = String.join(lineEnding, entry.getValue()) + lineEnding;
-                        writer.writeEntry(entry.getKey(), file.getBytes(StandardCharsets.UTF_8));
+                    for (Map.Entry<String, CollectedEntry> entry : rejectCollector.get().entrySet()) {
+                        writer.writeEntry(entry.getKey(), entry.getValue().toBytes(lineEnding, true));
                     }
                 }
             } else {
                 if (Files.exists(rejectsPath.toPath())) {
                     Utils.deleteFolder(rejectsPath.toPath());
                 }
-                for (Map.Entry<String, List<String>> entry : rejectCollector.get().entrySet()) {
+                for (Map.Entry<String, CollectedEntry> entry : rejectCollector.get().entrySet()) {
                     Path path = rejectsPath.toPath().resolve(entry.getKey());
-                    String file = String.join(lineEnding, entry.getValue());
-                    Files.write(makeParents(path), file.getBytes(StandardCharsets.UTF_8));
+                    Files.write(makeParents(path), entry.getValue().toBytes(lineEnding, true));
                 }
             }
         }
@@ -282,9 +281,15 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return new Result<>(patchSuccess ? 0 : 1, summary);
     }
 
-    public boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, List<String>> bFunc, Function<String, List<String>> pFunc, float minFuzz, int maxOffset, PatchMode mode) {
+    public boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, byte[]> bFunc, Function<String, byte[]> pFunc, float minFuzz, int maxOffset, PatchMode mode) throws IOException {
         Map<String, PatchFile> patchFiles = FastStream.of(pEntries)
-                .map(e -> PatchFile.fromLines(e, pFunc.apply(e), true))
+                .map(e -> {
+                    try {
+                        return PatchFile.fromLines(e, IOUtils.readAll(pFunc.apply(e)), true);
+                    } catch (IOException ex) {
+                        throw new RuntimeException("Failed to read patch file.", ex);
+                    }
+                })
                 .toMap(e -> {
                             if (e.patchedPath == null) {
                                 return e.name.substring(0, e.name.lastIndexOf(".patch"));
@@ -311,7 +316,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         for (String file : patchedFiles) {
             summary.changedFiles++;
             PatchFile patchFile = patchFiles.get(file);
-            List<String> baseLines = bFunc.apply(file);
+            List<String> baseLines = IOUtils.readAll(bFunc.apply(file));
             result &= doPatch(oCollector, rCollector, summary, file, baseLines, patchFile, minFuzz, maxOffset, mode);
         }
 

@@ -1,5 +1,10 @@
 package codechicken.diffpatch.util;
 
+import net.covers1624.quack.collection.ColUtils;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -7,7 +12,7 @@ import java.util.*;
  */
 public class FileCollector {
 
-    private final Map<String, List<String>> files = new LinkedHashMap<>();
+    private final Map<String, CollectedEntry> files = new LinkedHashMap<>();
 
     /**
      * Adds a List of lines to the collector.
@@ -17,10 +22,27 @@ public class FileCollector {
      * @return Returns true if lines were added.
      */
     public boolean consume(String name, List<String> lines) {
-        return files.put(name, Collections.unmodifiableList(lines)) == null;
+        if (files.containsKey(name)) return false;
+
+        files.put(name, new LinesCollectedEntry(lines));
+        return true;
     }
 
-    public Map<String, List<String>> get() {
+    /**
+     * Add a binary file to the collector.
+     *
+     * @param name  The file name.
+     * @param bytes The bytes to add.
+     * @return Returns true if the file was added.
+     */
+    public boolean consume(String name, byte[] bytes) {
+        if (files.containsKey(name)) return false;
+
+        files.put(name, new BinaryCollectedEntry(bytes));
+        return true;
+    }
+
+    public Map<String, CollectedEntry> get() {
         return Collections.unmodifiableMap(files);
     }
 
@@ -28,7 +50,7 @@ public class FileCollector {
         return get().keySet();
     }
 
-    public Collection<List<String>> values() {
+    public Collection<CollectedEntry> values() {
         return get().values();
     }
 
@@ -36,15 +58,51 @@ public class FileCollector {
         return files.isEmpty();
     }
 
-    public List<String> getSingleFile() {
-        if (files.isEmpty()) {
-            return Collections.emptyList();
-        }
+    @Nullable
+    public CollectedEntry getSingleFile() {
+        if (files.isEmpty()) return null;
 
         if (files.size() != 1) {
             throw new IllegalStateException("Expected 1 file in FileCollector, got: " + files.size());
         }
-        return files.entrySet().iterator().next().getValue();
+
+        return ColUtils.only(files.values());
     }
 
+    public abstract static class CollectedEntry {
+
+        public abstract byte[] toBytes(String lineEnding, boolean emptyNewline) throws IOException;
+    }
+
+    public static class LinesCollectedEntry extends CollectedEntry {
+
+        public final List<String> lines;
+
+        public LinesCollectedEntry(List<String> lines) {
+            this.lines = Collections.unmodifiableList(new ArrayList<>(lines));
+        }
+
+        @Override
+        public byte[] toBytes(String lineEnding, boolean emptyNewline) throws IOException {
+            String file = String.join(lineEnding, lines);
+            if (emptyNewline) {
+                file += lineEnding;
+            }
+            return file.getBytes(StandardCharsets.UTF_8);
+        }
+    }
+
+    public static class BinaryCollectedEntry extends CollectedEntry {
+
+        public final byte[] bytes;
+
+        public BinaryCollectedEntry(byte[] bytes) {
+            this.bytes = bytes;
+        }
+
+        @Override
+        public byte[] toBytes(String lineEnding, boolean emptyNewline) throws IOException {
+            return bytes;
+        }
+    }
 }

@@ -3,6 +3,7 @@ package codechicken.diffpatch.cli;
 import codechicken.diffpatch.diff.Differ;
 import codechicken.diffpatch.diff.PatienceDiffer;
 import codechicken.diffpatch.util.*;
+import codechicken.diffpatch.util.FileCollector.CollectedEntry;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
@@ -185,7 +186,9 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             changes = true;
             if (outputPath.getType().isPipe() && outputPath.getFormat() == null) {
                 try (PrintWriter out = new PrintWriter(outputPath.open())) {
-                    for (List<String> lines : patches.values()) {
+                    for (CollectedEntry entry : patches.values()) {
+                        // Safe, we only add generated lines to this collector.
+                        List<String> lines = ((FileCollector.LinesCollectedEntry) entry).lines;
                         lines.forEach(line -> {
                             out.print(line);
                             out.print(lineEnding);
@@ -194,19 +197,17 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                 }
             } else if (outputPath.getFormat() != null) {
                 try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
-                    for (Map.Entry<String, List<String>> entry : patches.get().entrySet()) {
-                        String patchFile = String.join(lineEnding, entry.getValue()) + lineEnding;
-                        writer.writeEntry(entry.getKey(), patchFile.getBytes(StandardCharsets.UTF_8));
+                    for (Map.Entry<String, CollectedEntry> entry : patches.get().entrySet()) {
+                        writer.writeEntry(entry.getKey(), entry.getValue().toBytes(lineEnding, true));
                     }
                 }
             } else {
                 if (Files.exists(outputPath.toPath())) {
                     Utils.deleteFolder(outputPath.toPath());
                 }
-                for (Map.Entry<String, List<String>> entry : patches.get().entrySet()) {
+                for (Map.Entry<String, CollectedEntry> entry : patches.get().entrySet()) {
                     Path path = outputPath.toPath().resolve(entry.getKey());
-                    String patchFile = String.join(lineEnding, entry.getValue()) + lineEnding;
-                    Files.write(IOUtils.makeParents(path), patchFile.getBytes(StandardCharsets.UTF_8));
+                    Files.write(IOUtils.makeParents(path), entry.getValue().toBytes(lineEnding, true));
                 }
             }
         }
