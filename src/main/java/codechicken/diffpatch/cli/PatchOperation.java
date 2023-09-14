@@ -291,7 +291,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                     }
                 })
                 .toMap(e -> {
-                            if (e.patchedPath == null) {
+                            if (e.patchedPath == null || "/dev/null".equals(e.patchedPath)) {
                                 return e.name.substring(0, e.name.lastIndexOf(".patch"));
                             } else if (e.patchedPath.startsWith("b/")) {
                                 return e.patchedPath.substring(2);
@@ -303,14 +303,28 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                         Function.identity()
                 );
 
+        Set<String> addedFiles = FastStream.of(patchFiles.keySet()).filter(e -> "/dev/null".equals(patchFiles.get(e).basePath)).sorted().toLinkedHashSet();
+        Set<String> removedFiles = FastStream.of(patchFiles.keySet()).filter(e -> "/dev/null".equals(patchFiles.get(e).patchedPath)).sorted().toLinkedHashSet();
         List<String> notPatched = FastStream.of(bEntries).filter(e -> !patchFiles.containsKey(e)).sorted().toList();
-        List<String> patchedFiles = FastStream.of(bEntries).filter(patchFiles::containsKey).sorted().toList();
-        List<String> removedFiles = FastStream.of(patchFiles.keySet()).filter(e -> !bEntries.contains(e)).sorted().toList();
+        List<String> patchedFiles = FastStream.of(bEntries).filterNot(removedFiles::contains).filter(patchFiles::containsKey).sorted().toList();
+        List<String> missingFiles = FastStream.of(patchFiles.keySet()).filterNot(addedFiles::contains).filter(e -> !bEntries.contains(e)).sorted().toList();
 
         boolean result = true;
         for (String file : notPatched) {
             summary.unchangedFiles++;
             oCollector.consume(file, bFunc.apply(file));
+        }
+
+        for (String file : addedFiles) {
+            summary.addedFiles++;
+            PatchFile patchFile = patchFiles.get(file);
+            log(DEBUG, "Added: " + file);
+            oCollector.consume(file, FastStream.of(patchFile.patches).flatMap(Patch::getPatchedLines).toList());
+        }
+
+        for (String file : removedFiles) {
+            summary.removedFiles++;
+            log(DEBUG, "Removed: " + file);
         }
 
         for (String file : patchedFiles) {
@@ -320,7 +334,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             result &= doPatch(oCollector, rCollector, summary, file, baseLines, patchFile, minFuzz, maxOffset, mode);
         }
 
-        for (String file : removedFiles) {
+        for (String file : missingFiles) {
             summary.missingFiles++;
             PatchFile patchFile = patchFiles.get(file);
             List<String> lines = new ArrayList<>(patchFile.toLines(false));
@@ -466,7 +480,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     public static class PatchesSummary {
 
         public int unchangedFiles;
+        public int addedFiles;
         public int changedFiles;
+        public int removedFiles;
         public int missingFiles;
         public int failedMatches;
         public int exactMatches;
@@ -480,7 +496,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             logger.println("Patch Summary:");
             if (!slim) {
                 logger.println(" Un-changed files: " + unchangedFiles);
+                logger.println(" Added files:      " + addedFiles);
                 logger.println(" Changed files:    " + changedFiles);
+                logger.println(" Removed files:    " + removedFiles);
                 logger.println(" Missing files:    " + missingFiles);
             }
             logger.println();
