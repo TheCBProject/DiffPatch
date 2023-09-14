@@ -38,6 +38,7 @@ repositories {
     mavenLocal()
     jcenter()
     mavenCentral()
+    maven { url 'https://maven.covers1624.net/' }
 }
 
 sourceSets {
