@@ -7,6 +7,7 @@ import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
 import net.covers1624.quack.io.IOUtils;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -267,6 +268,61 @@ public class PatchOperationTests {
                 .operate();
         assertEquals(0, result.exit);
         assertTrue(Files.exists(src.resolve("PatchFile.java")));
+    }
+
+    @Test
+    public void testFolderToFolderDeletion() throws Throwable {
+        Path tempDir = Files.createTempDirectory("dir_test");
+        tempDir.toFile().deleteOnExit();
+        Path orig = tempDir.resolve("orig");
+        Path src = tempDir.resolve("src");
+        Path patches = tempDir.resolve("patches");
+        copyResource("/data/orig/A.txt", orig.resolve("A.txt"));
+        copyResource("/data/orig/B.txt", orig.resolve("B.txt"));
+        copyResource("/data/patches/DeleteA.txt.patch", patches.resolve("A.txt.patch"));
+        copyResource("/data/patches/DeleteB.txt.patch", patches.resolve("B.txt.patch"));
+        CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .summary(true)
+                .basePath(orig)
+                .outputPath(src)
+                .patchesPath(patches)
+                .build()
+                .operate();
+        assertEquals(0, result.exit);
+        assertTrue(Files.notExists(src.resolve("A.txt")));
+        assertTrue(Files.notExists(src.resolve("B.txt")));
+    }
+
+    @Test
+    public void testFolderToFolderCreation() throws Throwable {
+        Path tempDir = Files.createTempDirectory("dir_test");
+        tempDir.toFile().deleteOnExit();
+
+        Path orig = tempDir.resolve("orig");
+        Files.createDirectories(orig);
+
+        Path src = tempDir.resolve("src");
+        Path patches = tempDir.resolve("patches");
+
+        copyResource("/data/patches/CreateA.txt.patch", patches.resolve("A.txt.patch"));
+        copyResource("/data/patches/CreateB.txt.patch", patches.resolve("B.txt.patch"));
+        CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .summary(true)
+                .basePath(orig)
+                .outputPath(src)
+                .patchesPath(patches)
+                .build()
+                .operate();
+
+        Assertions.assertAll(
+                () -> assertEquals(0, result.exit),
+                () -> assertTrue(Files.exists(src.resolve("A.txt"))),
+                () -> assertTrue(Files.exists(src.resolve("B.txt")))
+        );
     }
 
     private static void copyResource(String resource, Path to) throws IOException {
