@@ -7,7 +7,6 @@ import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import codechicken.diffpatch.util.archiver.ArchiveReader;
 import codechicken.diffpatch.util.archiver.ArchiveWriter;
 import net.covers1624.quack.io.IOUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -17,8 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by covers1624 on 11/2/21.
@@ -290,22 +288,22 @@ public class PatchOperationTests {
                 .patchesPath(patches)
                 .build()
                 .operate();
-        assertEquals(0, result.exit);
-        assertTrue(Files.notExists(src.resolve("A.txt")));
-        assertTrue(Files.notExists(src.resolve("B.txt")));
+
+        assertAll(
+                () -> assertEquals(0, result.exit),
+                () -> assertTrue(Files.notExists(src.resolve("A.txt"))),
+                () -> assertTrue(Files.notExists(src.resolve("B.txt")))
+        );
     }
 
     @Test
     public void testFolderToFolderCreation() throws Throwable {
         Path tempDir = Files.createTempDirectory("dir_test");
         tempDir.toFile().deleteOnExit();
-
         Path orig = tempDir.resolve("orig");
         Files.createDirectories(orig);
-
         Path src = tempDir.resolve("src");
         Path patches = tempDir.resolve("patches");
-
         copyResource("/data/patches/CreateA.txt.patch", patches.resolve("A.txt.patch"));
         copyResource("/data/patches/CreateB.txt.patch", patches.resolve("B.txt.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
@@ -318,7 +316,7 @@ public class PatchOperationTests {
                 .build()
                 .operate();
 
-        Assertions.assertAll(
+        assertAll(
                 () -> assertEquals(0, result.exit),
                 () -> assertTrue(Files.exists(src.resolve("A.txt"))),
                 () -> assertTrue(Files.exists(src.resolve("B.txt")))
