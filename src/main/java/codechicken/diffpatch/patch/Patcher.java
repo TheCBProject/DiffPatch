@@ -97,7 +97,7 @@ public class Patcher {
     }
 
     private Patch applyExactAt(int loc, WorkingPatch patch) {
-        if (!new HashSet<>(patch.getContextLines()).containsAll(lines.subList(loc, loc + patch.length1))) {
+        if (!patch.getContextLines().equals(lines.subList(loc, loc + patch.length1))) {
             throw new RuntimeException("Patch engine failure");
         }
         if (!canApplySafelyAt(loc, patch)) {
@@ -166,7 +166,7 @@ public class Patcher {
             return false;
         }
 
-        if (!new HashSet<>(patch.getContextLines()).containsAll(lines.subList(loc, loc + patch.length1))) {
+        if (!patch.getContextLines().equals(lines.subList(loc, loc + patch.length1))) {
             return false;
         }
 
