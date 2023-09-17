@@ -243,11 +243,19 @@ public class Patcher {
             }
         }
 
-        //Ensure only the allowed words change in counts.
+        // Ensure only the allowed words change in counts.
+        int accessChanges = 0;
         for (int i = 0; i < aWordCounts.length; i++) {
-            if (aWordCounts[i] != bWordCounts[i] && !ACCESS_WORDS.contains(charRep.getWordForChar((char) i))) {
-                return false;
+            if (aWordCounts[i] != bWordCounts[i]) {
+                if (!ACCESS_WORDS.contains(charRep.getWordForChar((char) i))) {
+                    return false;
+                } else {
+                    accessChanges++;
+                }
             }
+        }
+        if (accessChanges == 0) {
+            return false;
         }
 
         WorkingPatch fuzzyPatch = new WorkingPatch(adjustPatchToMatchedLines(patch, match, lines));
