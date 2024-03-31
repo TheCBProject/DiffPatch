@@ -1,5 +1,6 @@
 package codechicken.diffpatch.util;
 
+import net.covers1624.quack.collection.FastStream;
 import net.covers1624.quack.util.SneakyUtils;
 
 import java.io.IOException;
@@ -7,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,5 +44,20 @@ public class Utils {
             return stream.filter(Files::isRegularFile)
                     .collect(Collectors.toMap(e -> stripStart('/', finalToIndex.relativize(e).toString().replace("\\", "/")), Function.identity()));
         }
+    }
+
+    public static Set<String> filterPrefixed(Set<String> toFilter, String[] filters) {
+        if (filters.length == 0) return toFilter;
+
+        return FastStream.of(toFilter)
+                .filterNot(e -> {
+                    for (String s : filters) {
+                        if (e.startsWith(s)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                })
+                .toSet();
     }
 }

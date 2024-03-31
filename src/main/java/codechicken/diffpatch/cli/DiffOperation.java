@@ -14,13 +14,13 @@ import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 
 import static codechicken.diffpatch.util.LogLevel.*;
+import static codechicken.diffpatch.util.Utils.filterPrefixed;
 import static codechicken.diffpatch.util.Utils.indexChildren;
 
 /**
@@ -305,21 +305,6 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         log(this.summary ? INFO : DEBUG, "%s -> %s\n %d Added.\n %d Removed.", aName, bName, added, removed);
 
         return patchFile.toLines(autoHeader);
-    }
-
-    private static Set<String> filterPrefixed(Set<String> toFilter, String[] filters) {
-        if (filters.length == 0) return toFilter;
-
-        return FastStream.of(toFilter)
-                .filterNot(e -> {
-                    for (String s : filters) {
-                        if (e.startsWith(s)) {
-                            return true;
-                        }
-                    }
-                    return false;
-                })
-                .toSet();
     }
 
     public static class DiffSummary {
