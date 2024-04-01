@@ -46,10 +46,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     private final PatchMode mode;
     private final String patchesPrefix;
     private final String lineEnding;
-    private final boolean emptyOutput;
     private final String[] ignorePrefixes;
 
-    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, boolean emptyOutput, String[] ignorePrefixes) {
+    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.basePath = basePath;
@@ -63,7 +62,6 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         this.mode = mode;
         this.patchesPrefix = patchesPrefix;
         this.lineEnding = lineEnding;
-        this.emptyOutput = emptyOutput;
         this.ignorePrefixes = ignorePrefixes;
     }
 
@@ -257,7 +255,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 }
             }
         } else {
-            if (emptyOutput && Files.exists(outputPath.toPath())) {
+            if (!basePath.toPath().equals(outputPath.toPath()) && Files.exists(outputPath.toPath())) {
                 Utils.deleteFolder(outputPath.toPath());
             }
             for (Map.Entry<String, CollectedEntry> entry : outputCollector.get().entrySet()) {
@@ -540,7 +538,6 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private String aPrefix = "a/";
         private String bPrefix = "b/";
         private String lineEnding = System.lineSeparator();
-        private boolean emptyOutput = true;
 
         private final List<String> ignorePrefixes = new LinkedList<>();
 
@@ -676,11 +673,6 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return this;
         }
 
-        public Builder emptyOutput(boolean emptyOutput) {
-            this.emptyOutput = emptyOutput;
-            return this;
-        }
-
         public Builder ignorePrefix(String prefix) {
             ignorePrefixes.add(prefix);
             return this;
@@ -696,7 +688,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (outputPath == null) {
                 throw new IllegalStateException("output not set.");
             }
-            return new PatchOperation(logger, level, helpCallback, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, emptyOutput, ignorePrefixes.toArray(new String[0]));
+            return new PatchOperation(logger, level, helpCallback, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
         }
 
     }
