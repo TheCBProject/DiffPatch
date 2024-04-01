@@ -255,7 +255,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 }
             }
         } else {
-            if (!basePath.toPath().equals(outputPath.toPath()) && Files.exists(outputPath.toPath())) {
+            boolean isInPlaceOperation = basePath.getType().isPath() && basePath.toPath().equals(outputPath.toPath());
+            if (!isInPlaceOperation && Files.exists(outputPath.toPath())) {
                 Utils.deleteFolder(outputPath.toPath());
             }
             for (Map.Entry<String, CollectedEntry> entry : outputCollector.get().entrySet()) {
