@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static codechicken.diffpatch.util.LogLevel.*;
+import static codechicken.diffpatch.util.Utils.filterPrefixed;
 import static codechicken.diffpatch.util.Utils.indexChildren;
 import static net.covers1624.quack.io.IOUtils.makeParents;
 import static net.covers1624.quack.util.SneakyUtils.sneak;
@@ -45,8 +46,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     private final PatchMode mode;
     private final String patchesPrefix;
     private final String lineEnding;
+    private final String[] ignorePrefixes;
 
-    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding) {
+    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, OutputPath outputPath, OutputPath rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.basePath = basePath;
@@ -60,6 +62,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         this.mode = mode;
         this.patchesPrefix = patchesPrefix;
         this.lineEnding = lineEnding;
+        this.ignorePrefixes = ignorePrefixes;
     }
 
     public static Builder builder() {
@@ -172,11 +175,12 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
             try (ArchiveReader baseReader = basePath.getFormat().createReader(basePath.open())) {
                 try (ArchiveReader patchesReader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
+                    Set<String> filteredBaseIndex = filterPrefixed(baseReader.getEntries(), ignorePrefixes);
                     patchSuccess = doPatch(
                             outputCollector,
                             rejectCollector,
                             summary,
-                            baseReader.getEntries(),
+                            filteredBaseIndex,
                             patchesReader.getEntries(),
                             sneak(baseReader::getBytes),
                             sneak(patchesReader::getBytes),
@@ -191,11 +195,12 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (!basePath.isFile() && !patchesPath.isFile()) {
                 Map<String, Path> baseIndex = indexChildren(basePath.toPath());
                 Map<String, Path> patchIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
+                Set<String> filteredBaseIndex = filterPrefixed(   baseIndex.keySet(), ignorePrefixes);
                 patchSuccess = doPatch(
                         outputCollector,
                         rejectCollector,
                         summary,
-                        baseIndex.keySet(),
+                        filteredBaseIndex,
                         patchIndex.keySet(),
                         SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(baseIndex.get(e))),
                         SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(patchIndex.get(e))),
@@ -238,6 +243,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                         baseFunc = sneak(reader::getBytes);
                     }
                 }
+                baseIndex = filterPrefixed(baseIndex, ignorePrefixes);
                 patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchIndex, baseFunc, patchFunc, minFuzz, maxOffset, mode);
             }
         }
@@ -249,7 +255,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 }
             }
         } else {
-            if (Files.exists(outputPath.toPath())) {
+            boolean isInPlaceOperation = basePath.getType().isPath() && basePath.toPath().equals(outputPath.toPath());
+            if (!isInPlaceOperation && Files.exists(outputPath.toPath())) {
                 Utils.deleteFolder(outputPath.toPath());
             }
             for (Map.Entry<String, CollectedEntry> entry : outputCollector.get().entrySet()) {
@@ -533,6 +540,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private String bPrefix = "b/";
         private String lineEnding = System.lineSeparator();
 
+        private final List<String> ignorePrefixes = new LinkedList<>();
+
         private Builder() {
         }
 
@@ -665,6 +674,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return this;
         }
 
+        public Builder ignorePrefix(String prefix) {
+            ignorePrefixes.add(prefix);
+            return this;
+        }
+
         public PatchOperation build() {
             if (basePath == null) {
                 throw new IllegalStateException("basePath not set.");
@@ -675,7 +689,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (outputPath == null) {
                 throw new IllegalStateException("output not set.");
             }
-            return new PatchOperation(logger, level, helpCallback, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix, lineEnding);
+            return new PatchOperation(logger, level, helpCallback, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
         }
 
     }

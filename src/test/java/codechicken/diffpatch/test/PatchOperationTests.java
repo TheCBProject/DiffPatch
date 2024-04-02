@@ -32,6 +32,7 @@ public class PatchOperationTests {
         Path src = tempDir.resolve("src");
         Path patches = tempDir.resolve("patches");
         copyResource("/data/orig/PatchFile.java", orig.resolve("PatchFile.java"));
+        copyResource("/data/orig/A.txt", orig.resolve("A.txt"));
         copyResource("/data/src/PatchFile.java", cmp.resolve("PatchFile.java"));
         copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
@@ -40,11 +41,41 @@ public class PatchOperationTests {
                 .basePath(orig)
                 .outputPath(src)
                 .patchesPath(patches)
+                .ignorePrefix("A")
                 .build()
                 .operate();
         assertEquals(0, result.exit);
         assertTrue(Files.exists(src.resolve("PatchFile.java")));
+        assertFalse(Files.exists(src.resolve("A.txt")), "A is ignored, A.txt should not have been copied");
         List<String> output = Files.readAllLines(src.resolve("PatchFile.java"));
+        List<String> original = Files.readAllLines(cmp.resolve("PatchFile.java"));
+        assertEquals(output, original);
+    }
+
+    @Test
+    public void testFolderInplace() throws Throwable {
+        Path tempDir = Files.createTempDirectory("dir_test");
+        tempDir.toFile().deleteOnExit();
+        Path orig = tempDir.resolve("orig");
+        Path cmp = tempDir.resolve("cmp");
+        Path patches = tempDir.resolve("patches");
+        copyResource("/data/orig/PatchFile.java", orig.resolve("PatchFile.java"));
+        copyResource("/data/orig/A.txt", orig.resolve("A.txt"));
+        copyResource("/data/src/PatchFile.java", cmp.resolve("PatchFile.java"));
+        copyResource("/data/patches/PatchFile.java.patch", patches.resolve("PatchFile.java.patch"));
+        CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .basePath(orig)
+                .outputPath(orig)
+                .patchesPath(patches)
+                .ignorePrefix("A")
+                .build()
+                .operate();
+        assertEquals(0, result.exit);
+        assertTrue(Files.exists(orig.resolve("PatchFile.java")));
+        assertTrue(Files.exists(orig.resolve("A.txt")), "A is ignored, A.txt should not have been deleted");
+        List<String> output = Files.readAllLines(orig.resolve("PatchFile.java"));
         List<String> original = Files.readAllLines(cmp.resolve("PatchFile.java"));
         assertEquals(output, original);
     }
