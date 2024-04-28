@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static codechicken.diffpatch.util.LogLevel.*;
 import static codechicken.diffpatch.util.Utils.filterPrefixed;
@@ -331,6 +332,23 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
         for (String file : removedFiles) {
             summary.removedFiles++;
+            Path deletedFile = this.outputPath.toPath().resolve(file);
+            Files.delete(deletedFile);
+            try(Stream<Path> walker = Files.walk(this.outputPath.toPath())){
+                walker.sorted(Comparator.reverseOrder())
+                        .filter(Files::isDirectory)
+                        .filter(path -> {
+                            try(Stream<Path> folders = Files.list(path)) {
+                                return !folders.findFirst().isPresent();
+                            } catch (IOException e) {
+                                return false;
+                            }
+                        })
+                        .map(Path::toFile)
+                        .forEach(File::delete);
+            }
+
+
             log(DEBUG, "Removed: " + file);
         }
 
