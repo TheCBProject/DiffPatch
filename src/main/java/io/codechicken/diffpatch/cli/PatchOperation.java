@@ -195,7 +195,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (!basePath.isFile() && !patchesPath.isFile()) {
                 Map<String, Path> baseIndex = indexChildren(basePath.toPath());
                 Map<String, Path> patchIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
-                Set<String> filteredBaseIndex = filterPrefixed(   baseIndex.keySet(), ignorePrefixes);
+                Set<String> filteredBaseIndex = filterPrefixed(baseIndex.keySet(), ignorePrefixes);
                 patchSuccess = doPatch(
                         outputCollector,
                         rejectCollector,

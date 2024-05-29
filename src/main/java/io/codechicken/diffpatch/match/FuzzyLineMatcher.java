@@ -46,7 +46,7 @@ public class FuzzyLineMatcher {
             return nMatch;
         }
 
-        if (pattern.size() == 0) {
+        if (pattern.isEmpty()) {
             return new int[0];
         }
 
@@ -75,9 +75,9 @@ public class FuzzyLineMatcher {
         return bestMatch;
     }
 
-    //assumes the lines are in word to char mode
-    //return 0.0 poor match to 1.0 perfect match
-    //uses LevenshtienDistance. A distance with half the maximum number of errors is considered a 0.0 scored match
+    // assumes the lines are in word to char mode
+    // return 0.0 poor match to 1.0 perfect match
+    // uses LevenshtienDistance. A distance with half the maximum number of errors is considered a 0.0 scored match
     public static float matchLines(String s, String t) {
         int d = levenshteinDistance(s, t);
         if (d == 0) {
@@ -88,7 +88,7 @@ public class FuzzyLineMatcher {
         return Math.max(0f, 1f - d / max);
     }
 
-    //https://en.wikipedia.org/wiki/Levenshtein_distance
+    // https://en.wikipedia.org/wiki/Levenshtein_distance
     public static int levenshteinDistance(String s, String t) {
         // degenerate cases
         if (s.equals(t)) {
@@ -102,9 +102,9 @@ public class FuzzyLineMatcher {
         }
 
         // create two work vectors of integer distances
-        //previous
+        // previous
         int[] v0 = new int[t.length() + 1];
-        //current
+        // current
         int[] v1 = new int[t.length() + 1];
 
         // initialize v1 (the current row of distances)
@@ -144,17 +144,17 @@ public class FuzzyLineMatcher {
 
         private final int patternLength;
         private final LineRange range;
-        //maximum offset between line matches in a run
+        // maximum offset between line matches in a run
         private final int maxOffset;
 
         public LineRange workingRange;
 
         // location of first pattern line in search lines. Starting offset for a match
         private int pos = Integer.MIN_VALUE;
-        //consecutive matches for pattern offset from loc by up to maxOffset
-        //first entry is for pattern starting at loc in text, last entry is offset +maxOffset
+        // consecutive matches for pattern offset from loc by up to maxOffset
+        // first entry is for pattern starting at loc in text, last entry is offset +maxOffset
         private final StraightMatch[] matches;
-        //offset index of first node in best path
+        // offset index of first node in best path
         private int firstNode;
 
         public MatchMatrix(List<String> pattern, List<String> search) {
@@ -229,20 +229,20 @@ public class FuzzyLineMatcher {
             reuse.update(pos);
         }
 
-        //calculates the best path through the match matrix
-        //all paths must start with the first line of pattern matched to the line at loc (0 offset)
+        // calculates the best path through the match matrix
+        // all paths must start with the first line of pattern matched to the line at loc (0 offset)
         private float recalculate() {
-            //tail nodes have sum = score
+            // tail nodes have sum = score
             for (int j = 0; j <= maxOffset; j++) {
                 MatchNode node = matches[j].nodes[patternLength - 1];
                 node.sum = node.score;
                 node.next = -1;//no next
             }
 
-            //calculate best paths for all nodes excluding head
+            // calculate best paths for all nodes excluding head
             for (int i = patternLength - 2; i >= 0; i--) {
                 for (int j = 0; j <= maxOffset; j++) {
-                    //for each node
+                    // for each node
                     MatchNode node = matches[j].nodes[i];
                     int maxk = -1;
                     float maxsum = 0;
@@ -254,7 +254,7 @@ public class FuzzyLineMatcher {
 
                         float sum = matches[k].nodes[l].sum;
                         if (k > j) {
-                            sum -= 0.5f * (k - j); //penalty for skipping lines in search text
+                            sum -= 0.5f * (k - j); // penalty for skipping lines in search text
                         }
 
                         if (sum > maxsum) {
@@ -268,7 +268,7 @@ public class FuzzyLineMatcher {
                 }
             }
 
-            //find starting node
+            // find starting node
             {
                 firstNode = 0;
                 float maxsum = matches[0].nodes[0].sum;
@@ -281,7 +281,7 @@ public class FuzzyLineMatcher {
                 }
             }
 
-            //return best path value
+            // return best path value
             return matches[firstNode].nodes[0].sum / patternLength;
         }
 
@@ -292,15 +292,14 @@ public class FuzzyLineMatcher {
         public int[] path() {
             int[] path = new int[patternLength];
 
-            int offset = firstNode; //offset of current node
+            int offset = firstNode; // offset of current node
             MatchNode node = matches[firstNode].nodes[0];
             path[0] = locInRange(pos + offset);
 
-            int i = 0; //index in pattern of current node
+            int i = 0; // index in pattern of current node
             while (node.next >= 0) {
                 int delta = offsetsToPatternDistance(offset, node.next);
-                while (delta-- > 1) //skipped pattern lines
-                {
+                while (delta-- > 1) { // skipped pattern lines
                     path[++i] = -1;
                 }
 
@@ -309,8 +308,7 @@ public class FuzzyLineMatcher {
                 path[i] = locInRange(pos + i + offset);
             }
 
-            while (++i < path.length)//trailing lines with no match
-            {
+            while (++i < path.length) { // trailing lines with no match
                 path[i] = -1;
             }
 
@@ -339,7 +337,7 @@ public class FuzzyLineMatcher {
             return j >= i ? 1 : 1 + i - j;
         }
 
-        //contains match entries for consecutive characters of a pattern and the search text starting at line offset loc
+        // contains match entries for consecutive characters of a pattern and the search text starting at line offset loc
         private static class StraightMatch {
 
             private final int patternLength;
@@ -375,11 +373,11 @@ public class FuzzyLineMatcher {
 
         private static class MatchNode {
 
-            //score of this match (1.0 = perfect, 0.0 = no match)
+            // score of this match (1.0 = perfect, 0.0 = no match)
             public float score;
-            //sum of the match scores in the best path up to this node
+            // sum of the match scores in the best path up to this node
             public float sum;
-            //offset index of the next node in the path
+            // offset index of the next node in the path
             public int next;
         }
     }

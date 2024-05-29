@@ -107,12 +107,12 @@ public class Patcher {
         lines.subList(loc, loc + patch.length1).clear();
         lines.addAll(loc, patch.getPatchedLines());
 
-        //update the lineModeText
+        // update the lineModeText
         if (lmText != null) {
             lmText = lmText.substring(0, loc) + patch.lmPatched + lmText.substring(loc + patch.length1);
         }
 
-        //update the wordModeLines
+        // update the wordModeLines
         if (wmLines != null) {
             wmLines.subList(loc, loc + patch.length1).clear();
             wmLines.addAll(loc, patch.wmPatched);
@@ -234,7 +234,7 @@ public class Patcher {
 
         for (int i = 0; i < patch.wmContext.size(); i++) {
             match[i] = loc + i;
-            //Count words in both lines.
+            // Count words in both lines.
             for (char c : patch.wmContext.get(i).toCharArray()) {
                 aWordCounts[c]++;
             }
@@ -274,8 +274,7 @@ public class Patcher {
         }
 
         int loc = patch.start2 + searchOffset;
-        if (loc + patch.length1 > wmLines.size())//initialise search at end of file if loc is past file length
-        {
+        if (loc + patch.length1 > wmLines.size()) { // initialise search at end of file if loc is past file length
             loc = wmLines.size() - patch.length1;
         }
 
@@ -293,7 +292,7 @@ public class Patcher {
             fuzzyPatch.linesToChars(charRep);
         }
 
-        //if the patch needs lines trimmed off it, the early match entries will be negative
+        // if the patch needs lines trimmed off it, the early match entries will be negative
         int at = 0;
         for (int i : match) {
             if (i >= 0) {
@@ -308,19 +307,19 @@ public class Patcher {
     }
 
     public static Patch adjustPatchToMatchedLines(Patch patch, int[] match, List<String> lines) {
-        //replace the patch with a copy
+        // replace the patch with a copy
         Patch fuzzyPatch = new Patch(patch);
         List<Diff> diffs = fuzzyPatch.diffs; //for convenience
 
-        //keep operations, but replace lines with lines in source text
-        //unmatched patch lines (-1) are deleted
-        //unmatched target lines (increasing offset) are added to the patch
+        // keep operations, but replace lines with lines in source text
+        // unmatched patch lines (-1) are deleted
+        // unmatched target lines (increasing offset) are added to the patch
         for (int i = 0, j = 0, ploc = -1; i < patch.length1; i++) {
             int mloc = match[i];
 
-            //insert extra target lines into patch
+            // insert extra target lines into patch
             if (mloc >= 0 && ploc >= 0 && mloc - ploc > 1) {
-                //delete an unmatched target line if the surrounding diffs are also DELETE, otherwise use it as context
+                // delete an unmatched target line if the surrounding diffs are also DELETE, otherwise use it as context
                 Operation op = diffs.get(j - 1).op == Operation.DELETE && diffs.get(j).op == Operation.DELETE ? Operation.DELETE : Operation.EQUAL;
 
                 for (int l = ploc + 1; l < mloc; l++) {
@@ -329,16 +328,14 @@ public class Patcher {
             }
             ploc = mloc;
 
-            //keep insert lines the same
+            // keep insert lines the same
             while (diffs.get(j).op == Operation.INSERT) {
                 j++;
             }
 
-            if (mloc < 0) //unmatched context line
-            {
+            if (mloc < 0) { // unmatched context line
                 diffs.remove(j);
-            } else //update context to match target file (may be the same, doesn't matter)
-            {
+            } else { //update context to match target file (may be the same, doesn't matter)
                 diffs.get(j++).text = lines.get(mloc);
             }
         }
@@ -386,7 +383,7 @@ public class Patcher {
         AtomicReference<Float> bestScore = new AtomicReference<>(minMatchScore);
         AtomicReference<int[]> bestMatch = new AtomicReference<>(null);
         while (fwd.step(bestScore, bestMatch) | rev.step(bestScore, bestMatch)) {
-            ;
+            // Empty body.
         }
 
         return Pair.of(bestMatch.get(), bestScore.get());
@@ -397,8 +394,8 @@ public class Patcher {
         return new LineRange(0, lastAppliedPatch != null ? lastAppliedPatch.getTrimmedRange2().getEnd() : 0);
     }
 
-    //the offset distance which constitutes a warning for a patch
-    //currently either 10% of file length, or 10x patch length, whichever is longer
+    // the offset distance which constitutes a warning for a patch
+    // currently either 10% of file length, or 10x patch length, whichever is longer
     public static int offsetWarnDistance(int patchLength, int fileLength) {
         return Math.max(patchLength * 10, fileLength / 10);
     }
@@ -411,7 +408,7 @@ public class Patcher {
         private final float penaltyPerLine;
 
         // used as a Range/Slice for the MatchMatrix array
-        private LineRange active;
+        private final LineRange active;
         private float penalty;
 
         public MatchRunner(int loc, int dir, List<FuzzyLineMatcher.MatchMatrix> mms, float penaltyPerLine) {

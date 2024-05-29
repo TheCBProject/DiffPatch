@@ -29,9 +29,8 @@ public class PatienceMatch {
             matches[--end1] = --end2;
         }
 
-        if (start1 == end1 || start2 == end2 || //no lines on a side
-                end1 - start1 + end2 - start2 <= 3)//either a 1-2 or 2-1 which would've been matched by steps 1 and 2
-        {
+        if (start1 == end1 || start2 == end2  // no lines on a side
+            || end1 - start1 + end2 - start2 <= 3) { // either a 1-2 or 2-1 which would've been matched by steps 1 and 2
             return;
         }
 
@@ -117,7 +116,7 @@ public class PatienceMatch {
         }
         subChars.clear();
 
-        if (common2.size() == 0) {
+        if (common2.isEmpty()) {
             return Collections.emptyList();
         }
         List<Int2IntMap.Entry> ret = new ArrayList<>();
@@ -132,7 +131,7 @@ public class PatienceMatch {
 
     //https://en.wikipedia.org/wiki/Patience_sorting
     public static int[] lasIndices(IntList sequence) {
-        if (sequence.size() == 0) {
+        if (sequence.isEmpty()) {
             return new int[0];
         }
 
