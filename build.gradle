@@ -5,9 +5,9 @@ plugins {
     id "net.covers1624.signing" version '1.0.0.2'
 }
 
-group 'codechicken'
+group 'io.codechicken'
 archivesBaseName = 'DiffPatch'
-version '1.5.0'
+version '2.0.0'
 
 targetCompatibility = "1.8"
 sourceCompatibility = "1.8"
@@ -109,17 +109,17 @@ shadowJar {
     exclude 'module-info.class'
 
     //Relocate all our dependencies into a repack package.
-    relocate 'net.covers1624.quack', 'codechicken.repack.net.covers1624.quack'
-    relocate 'it.unimi', 'codechicken.repack.it.unimi'
-    relocate 'org.apache', 'codechicken.repack.org.apache'
-    relocate 'org.tukaani', 'codechicken.repack.org.tukaani'
-    relocate 'joptsimple', 'codechicken.repack.joptsimple'
+    relocate 'net.covers1624.quack', 'io.codechicken.repack.net.covers1624.quack'
+    relocate 'it.unimi', 'io.codechicken.repack.it.unimi'
+    relocate 'org.apache', 'io.codechicken.repack.org.apache'
+    relocate 'org.tukaani', 'io.codechicken.repack.org.tukaani'
+    relocate 'joptsimple', 'io.codechicken.repack.joptsimple'
     //Transform joptsimple properties files.
     transform(com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer) {
         paths << "joptsimple/ExceptionMessages.properties"
         paths << "joptsimple/HelpFormatterMessages.properties"
         keyTransformer = { key ->
-            key.replaceAll('^(joptsimple\\..*)$', 'codechicken.repack.$1')
+            key.replaceAll('^(joptsimple\\..*)$', 'io.codechicken.repack.$1')
         }
     }
 }
