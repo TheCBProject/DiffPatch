@@ -103,7 +103,7 @@ public class Patch {
     }
 
     public List<Patch> split(int numContextLines) {
-        if (diffs.size() == 0) {
+        if (diffs.isEmpty()) {
             return new ArrayList<>();
         }
         List<LineRange> ranges = new ArrayList<>();

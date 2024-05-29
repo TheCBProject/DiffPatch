@@ -16,7 +16,7 @@ public class LineMatching {
         int len1 = matches.length;
         int start1 = 0, start2 = 0;
         do {
-            //search for a matchpoint
+            // search for a matchpoint
             int end1 = start1;
             while (end1 < len1 && matches[end1] < 0) {
                 end1++;
@@ -27,7 +27,7 @@ public class LineMatching {
                 ret.add(Pair.of(new LineRange(start1, end1), new LineRange(start2, end2)));
                 start1 = end1;
                 start2 = end2;
-            } else {//matchpoint follows on from start, no unmatched lines
+            } else { // matchpoint follows on from start, no unmatched lines
                 start1++;
                 start2++;
             }
@@ -70,7 +70,7 @@ public class LineMatching {
             List<Diff> diffs = patch.diffs;
             int start1 = patch.start1, start2 = patch.start2;
             for (int i = 0; i < diffs.size(); ) {
-                //skip matched
+                // skip matched
                 while (i < diffs.size() && diffs.get(i).op == Operation.EQUAL) {
                     start1++;
                     start2++;
