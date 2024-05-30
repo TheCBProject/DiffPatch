@@ -12,6 +12,7 @@ import net.covers1624.quack.io.IOUtils;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -274,7 +275,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         }
     }
 
-    private List<String> doDiff(DiffSummary summary, String aName, String bName, List<String> aLines, List<String> bLines, int context, boolean autoHeader) {
+    private List<String> doDiff(DiffSummary summary, @Nullable String aName, @Nullable String bName, List<String> aLines, List<String> bLines, int context, boolean autoHeader) {
         PatienceDiffer differ = new PatienceDiffer();
         PatchFile patchFile = new PatchFile();
         patchFile.basePath = aName != null ? aName : "/dev/null";
@@ -344,11 +345,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         private Consumer<PrintStream> helpCallback = SneakyUtils.nullCons();
         private LogLevel level = LogLevel.WARN;
         private boolean summary;
-        private InputPath aPath;
-        private InputPath bPath;
+        private @Nullable InputPath aPath;
+        private @Nullable InputPath bPath;
         private boolean autoHeader;
         private int context = Differ.DEFAULT_CONTEXT;
-        private OutputPath outputPath;
+        private @Nullable OutputPath outputPath;
         private String aPrefix = "a/";
         private String bPrefix = "b/";
         private String lineEnding = System.lineSeparator();

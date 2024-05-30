@@ -58,8 +58,7 @@ public class FileCollector {
         return files.isEmpty();
     }
 
-    @Nullable
-    public CollectedEntry getSingleFile() {
+    public @Nullable CollectedEntry getSingleFile() {
         if (files.isEmpty()) return null;
 
         if (files.size() != 1) {
