@@ -2,6 +2,7 @@ package io.codechicken.diffpatch.util;
 
 import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
 import net.covers1624.quack.io.IOUtils;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -86,15 +87,15 @@ public abstract class InputPath {
      *
      * @return The format.
      */
-    public abstract ArchiveFormat getFormat();
+    public abstract @Nullable ArchiveFormat getFormat();
 
     public static class FilePath extends InputPath {
 
         private final Path path;
-        private final ArchiveFormat format;
+        private final @Nullable ArchiveFormat format;
         private final OpenOption[] opts;
 
-        public FilePath(Path path, ArchiveFormat format, OpenOption... opts) {
+        public FilePath(Path path, @Nullable ArchiveFormat format, OpenOption... opts) {
             super(PathType.PATH);
             this.path = path;
             this.format = format;
@@ -132,7 +133,7 @@ public abstract class InputPath {
         }
 
         @Override
-        public ArchiveFormat getFormat() {
+        public @Nullable ArchiveFormat getFormat() {
             return format;
         }
     }
@@ -140,9 +141,9 @@ public abstract class InputPath {
     public static class PipePath extends InputPath {
 
         private final InputStream pipe;
-        private final ArchiveFormat format;
+        private final @Nullable ArchiveFormat format;
 
-        public PipePath(InputStream pipe, ArchiveFormat format) {
+        public PipePath(InputStream pipe, @Nullable ArchiveFormat format) {
             super(PathType.PIPE);
             this.pipe = pipe;
             this.format = format;
@@ -166,7 +167,7 @@ public abstract class InputPath {
         }
 
         @Override
-        public ArchiveFormat getFormat() {
+        public @Nullable ArchiveFormat getFormat() {
             return format;
         }
 

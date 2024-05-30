@@ -1,5 +1,7 @@
 package io.codechicken.diffpatch.util;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -13,9 +15,9 @@ public class PatchFile {
     private static final Pattern HUNK_OFFSET = Pattern.compile("@@ -(\\d+),(\\d+) \\+([_\\d]+),(\\d+) @@");
     private static final String NO_NEW_LINE = "\\ No newline at end of file";
 
-    public String name;
-    public String basePath;
-    public String patchedPath;
+    public @Nullable String name;
+    public @Nullable String basePath;
+    public @Nullable String patchedPath;
     public boolean noNewLine;
 
     public List<Patch> patches = new ArrayList<>();

@@ -5,6 +5,7 @@ import io.codechicken.diffpatch.util.*;
 import net.covers1624.quack.collection.ColUtils;
 import net.covers1624.quack.collection.FastStream;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,7 +20,7 @@ public class Patcher {
 
     // Last here means highest line number, not necessarily most recent.
     // Patches can only apply before lastAppliedPatch in fuzzy mode
-    private Patch lastAppliedPatch = null;
+    private @Nullable Patch lastAppliedPatch = null;
 
     // we maintain delta as the offset of the last patch (applied location - expected location)
     // this way if a line is inserted, and all patches are offset by 1, only the first patch is reported as offset
@@ -27,8 +28,8 @@ public class Patcher {
     private int searchOffset;
 
     private final CharRepresenter charRep;
-    private String lmText;
-    private List<String> wmLines;
+    private @Nullable String lmText;
+    private @Nullable List<String> wmLines;
 
     public final int maxMatchOffset;
     public final float minMatchScore;
@@ -41,7 +42,7 @@ public class Patcher {
         this(patchFile, lines, null, minFuzz, maxOffset);
     }
 
-    public Patcher(PatchFile patchFile, List<String> lines, CharRepresenter charRep, float minFuzz, int maxOffset) {
+    public Patcher(PatchFile patchFile, List<String> lines, @Nullable CharRepresenter charRep, float minFuzz, int maxOffset) {
         this.patches = FastStream.of(patchFile.patches).map(WorkingPatch::new).toList();
         this.lines = new ArrayList<>(lines);
         if (charRep == null) {
@@ -358,7 +359,7 @@ public class Patcher {
         return fuzzyMatch(wmContext, wmLines, loc, maxMatchOffset, minMatchScore, ranges);
     }
 
-    public static Pair<int[], Float> fuzzyMatch(List<String> wmPattern, List<String> wmText, int loc, int maxMatchOffset, float minMatchScore, List<LineRange> ranges) {
+    public static Pair<int[], Float> fuzzyMatch(List<String> wmPattern, List<String> wmText, int loc, int maxMatchOffset, float minMatchScore, @Nullable List<LineRange> ranges) {
         if (ranges == null) {
             ranges = Collections.singletonList(LineRange.fromStartLen(0, wmText.size()));
         }
@@ -445,8 +446,7 @@ public class Patcher {
                     continue;
                 }
 
-                if (penalty > 0) //ignore penalty for the first 10%
-                {
+                if (penalty > 0) { //ignore penalty for the first 10%
                     score -= penalty;
                 }
 
@@ -466,23 +466,22 @@ public class Patcher {
     //patch extended with implementation fields
     public static class WorkingPatch extends Patch {
 
-        public Result result;
-        public String lmContext;
-        public String lmPatched;
-        public List<String> wmContext;
-        public List<String> wmPatched;
+        public @Nullable Result result;
+        public @Nullable String lmContext;
+        public @Nullable String lmPatched;
+        public @Nullable List<String> wmContext;
+        public @Nullable List<String> wmPatched;
 
         public WorkingPatch(Patch other) {
             super(other);
         }
 
         public void fail() {
-            result = new Result(this, false);
+            result = new Result(this, false, null);
         }
 
         public void succeed(PatchMode mode, Patch appliedPatch) {
-            result = new Result(this, true);
-            result.mode = mode;
+            result = new Result(this, true, mode);
             result.appliedPatch = appliedPatch;
         }
 
@@ -505,7 +504,7 @@ public class Patcher {
             wmPatched = getPatchedLines(rep::wordsToChars);
         }
 
-        public LineRange getKeepoutRange2() {
+        public @Nullable LineRange getKeepoutRange2() {
             if (result != null && result.appliedPatch != null) {
                 return result.appliedPatch.getTrimmedRange2();
             }
@@ -523,23 +522,21 @@ public class Patcher {
 
     public static class Result {
 
-        public Patch patch;
-        public boolean success;
-        public PatchMode mode;
+        public final Patch patch;
+        public final boolean success;
+        public final @Nullable PatchMode mode;
 
         public int searchOffset;
-        public Patch appliedPatch;
+        public @Nullable Patch appliedPatch;
 
         public int offset;
         public boolean offsetWarning;
         public float fuzzyQuality;
 
-        public Result() {
-        }
-
-        public Result(Patch patch, boolean success) {
+        public Result(Patch patch, boolean success, @Nullable PatchMode mode) {
             this.patch = patch;
             this.success = success;
+            this.mode = mode;
         }
 
         public String summary() {

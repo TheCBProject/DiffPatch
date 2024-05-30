@@ -12,6 +12,7 @@ import net.covers1624.quack.io.IOUtils;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -527,9 +528,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private Consumer<PrintStream> helpCallback = SneakyUtils.nullCons();
         private LogLevel level = LogLevel.WARN;
         private boolean summary;
-        private InputPath basePath;
-        private InputPath patchesPath;
-        private OutputPath outputPath;
+        private @Nullable InputPath basePath;
+        private @Nullable InputPath patchesPath;
+        private @Nullable OutputPath outputPath;
         private OutputPath rejectsPath = OutputPath.NullPath.INSTANCE;
         private float minFuzz = FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE;
         private int maxOffset = FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET;

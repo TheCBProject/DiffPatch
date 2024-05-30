@@ -1,6 +1,7 @@
 package io.codechicken.diffpatch.cli;
 
 import io.codechicken.diffpatch.util.LogLevel;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -40,13 +41,13 @@ public abstract class CliOperation<T> {
     public static class Result<T> {
 
         public final int exit;
-        public final T summary;
+        public final @Nullable T summary;
 
         public Result(int exit) {
             this(exit, null);
         }
 
-        public Result(int exit, T summary) {
+        public Result(int exit, @Nullable T summary) {
             this.exit = exit;
             this.summary = summary;
         }

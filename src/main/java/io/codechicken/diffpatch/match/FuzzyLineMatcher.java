@@ -3,6 +3,7 @@ package io.codechicken.diffpatch.match;
 import io.codechicken.diffpatch.util.LineRange;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -94,10 +95,10 @@ public class FuzzyLineMatcher {
         if (s.equals(t)) {
             return 0;
         }
-        if (s.length() == 0) {
+        if (s.isEmpty()) {
             return t.length();
         }
-        if (t.length() == 0) {
+        if (t.isEmpty()) {
             return s.length();
         }
 
@@ -161,7 +162,7 @@ public class FuzzyLineMatcher {
             this(pattern, search, DEFAULT_MAX_OFFSET, null);
         }
 
-        public MatchMatrix(List<String> pattern, List<String> search, int maxOffset, LineRange range) {
+        public MatchMatrix(List<String> pattern, List<String> search, int maxOffset, @Nullable LineRange range) {
             if (range == null) {
                 range = LineRange.fromStartLen(0, search.size());
             }

@@ -3,7 +3,9 @@ package io.codechicken.diffpatch.diff;
 import io.codechicken.diffpatch.match.FuzzyLineMatcher;
 import io.codechicken.diffpatch.util.CharRepresenter;
 import net.covers1624.quack.collection.FastStream;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -11,8 +13,8 @@ import java.util.List;
  */
 public class LineMatchedDiffer extends PatienceDiffer {
 
-    private List<String> wordModeLines1;
-    private List<String> wordModeLines2;
+    private List<String> wordModeLines1 = new ArrayList<>();
+    private List<String> wordModeLines2 = new ArrayList<>();
 
     private int maxMatchOffset;
     private int minMatchScore;

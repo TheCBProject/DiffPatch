@@ -6,6 +6,7 @@ import io.codechicken.diffpatch.util.Diff;
 import io.codechicken.diffpatch.util.Operation;
 import io.codechicken.diffpatch.util.Patch;
 import net.covers1624.quack.collection.FastStream;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
@@ -20,7 +21,7 @@ public abstract class Differ {
         this(null);
     }
 
-    public Differ(CharRepresenter charRep) {
+    public Differ(@Nullable CharRepresenter charRep) {
         if (charRep == null) {
             charRep = new CharRepresenter();
         }
