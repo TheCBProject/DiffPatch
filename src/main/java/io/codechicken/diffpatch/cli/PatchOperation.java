@@ -288,7 +288,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return new Result<>(patchSuccess ? 0 : 1, summary);
     }
 
-    public boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, byte[]> bFunc, Function<String, byte[]> pFunc, float minFuzz, int maxOffset, PatchMode mode) throws IOException {
+    private boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, byte[]> bFunc, Function<String, byte[]> pFunc, float minFuzz, int maxOffset, PatchMode mode) throws IOException {
         Map<String, PatchFile> patchFiles = FastStream.of(pEntries)
                 .map(e -> {
                     try {
@@ -354,7 +354,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return result;
     }
 
-    public boolean doPatch(FileCollector outputCollector, FileCollector rejectCollector, PatchesSummary summary, String baseName, List<String> base, PatchFile patchFile, float minFuzz, int maxOffset, PatchMode mode) {
+    private boolean doPatch(FileCollector outputCollector, FileCollector rejectCollector, PatchesSummary summary, String baseName, List<String> base, PatchFile patchFile, float minFuzz, int maxOffset, PatchMode mode) {
         Patcher patcher = new Patcher(patchFile, base, minFuzz, maxOffset);
         log(DEBUG, "Patching: " + baseName);
         List<Patcher.Result> results = patcher.patch(mode);

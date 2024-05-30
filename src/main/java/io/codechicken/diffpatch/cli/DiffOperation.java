@@ -217,7 +217,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         return new Result<>(changes ? 1 : 0, summary);
     }
 
-    public void doDiff(FileCollector patches, DiffSummary summary, Set<String> aEntries, Set<String> bEntries, LinesReader aFunc, LinesReader bFunc, int context, boolean autoHeader) {
+    private void doDiff(FileCollector patches, DiffSummary summary, Set<String> aEntries, Set<String> bEntries, LinesReader aFunc, LinesReader bFunc, int context, boolean autoHeader) {
         List<String> added = FastStream.of(bEntries).filter(e -> !aEntries.contains(e)).sorted().toList();
         List<String> common = FastStream.of(aEntries).filter(bEntries::contains).sorted().toList();
         List<String> removed = FastStream.of(aEntries).filter(e -> !bEntries.contains(e)).sorted().toList();
@@ -274,7 +274,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         }
     }
 
-    public List<String> doDiff(DiffSummary summary, String aName, String bName, List<String> aLines, List<String> bLines, int context, boolean autoHeader) {
+    private List<String> doDiff(DiffSummary summary, String aName, String bName, List<String> aLines, List<String> bLines, int context, boolean autoHeader) {
         PatienceDiffer differ = new PatienceDiffer();
         PatchFile patchFile = new PatchFile();
         patchFile.basePath = aName != null ? aName : "/dev/null";
