@@ -2,7 +2,6 @@ package io.codechicken.diffpatch.test;
 
 import io.codechicken.diffpatch.cli.CliOperation;
 import io.codechicken.diffpatch.cli.DiffOperation;
-import io.codechicken.diffpatch.util.Input;
 import io.codechicken.diffpatch.util.Input.MultiInput;
 import io.codechicken.diffpatch.util.LogLevel;
 import io.codechicken.diffpatch.util.Output.MultiOutput;
@@ -42,9 +41,9 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(MultiInput.folder(orig))
-                .bPath(MultiInput.folder(src))
-                .outputPath(MultiOutput.folder(patches))
+                .baseInput(MultiInput.folder(orig))
+                .changedInput(MultiInput.folder(src))
+                .patchesOutput(MultiOutput.folder(patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -63,9 +62,9 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(MultiInput.folder(orig))
-                .bPath(MultiInput.folder(src))
-                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
+                .baseInput(MultiInput.folder(orig))
+                .changedInput(MultiInput.folder(src))
+                .patchesOutput(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -88,9 +87,9 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(MultiInput.folder(orig))
-                .bPath(MultiInput.folder(src))
-                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, os))
+                .baseInput(MultiInput.folder(orig))
+                .changedInput(MultiInput.folder(src))
+                .patchesOutput(MultiOutput.archive(ArchiveFormat.ZIP, os))
                 .build()
                 .operate();
         os.close();
@@ -115,9 +114,9 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(MultiInput.archive(ArchiveFormat.ZIP, orig))
-                .bPath(MultiInput.folder(src))
-                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
+                .baseInput(MultiInput.archive(ArchiveFormat.ZIP, orig))
+                .changedInput(MultiInput.folder(src))
+                .patchesOutput(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -141,9 +140,9 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(orig))))
-                .bPath(MultiInput.folder(src))
-                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
+                .baseInput(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(orig))))
+                .changedInput(MultiInput.folder(src))
+                .patchesOutput(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -167,9 +166,9 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(MultiInput.folder(orig))
-                .bPath(MultiInput.archive(ArchiveFormat.ZIP, src))
-                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
+                .baseInput(MultiInput.folder(orig))
+                .changedInput(MultiInput.archive(ArchiveFormat.ZIP, src))
+                .patchesOutput(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -193,9 +192,9 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(MultiInput.folder(orig))
-                .bPath(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(src))))
-                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
+                .baseInput(MultiInput.folder(orig))
+                .changedInput(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(src))))
+                .patchesOutput(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);

@@ -3,10 +3,13 @@ package io.codechicken.diffpatch;
 import io.codechicken.diffpatch.cli.*;
 import io.codechicken.diffpatch.diff.Differ;
 import io.codechicken.diffpatch.match.FuzzyLineMatcher;
-import io.codechicken.diffpatch.util.*;
+import io.codechicken.diffpatch.util.Input;
 import io.codechicken.diffpatch.util.Input.MultiInput;
+import io.codechicken.diffpatch.util.LogLevel;
+import io.codechicken.diffpatch.util.Output;
 import io.codechicken.diffpatch.util.Output.MultiOutput;
 import io.codechicken.diffpatch.util.Output.SingleOutput;
+import io.codechicken.diffpatch.util.PatchMode;
 import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -163,9 +166,9 @@ public class DiffPatch {
             operation = DiffOperation.builder()
                     .logTo(logger)
                     .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
-                    .aPath(aInput)
-                    .bPath(bInput)
-                    .outputPath(output)
+                    .baseInput(aInput)
+                    .changedInput(bInput)
+                    .patchesOutput(output)
                     .level(level)
                     .summary(summary)
                     .autoHeader(optSet.has(autoHeaderOpt))
@@ -215,10 +218,10 @@ public class DiffPatch {
                     .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
                     .level(level)
                     .summary(summary)
-                    .basePath(baseInput)
-                    .patchesPath(patchesInput)
-                    .outputPath(output)
-                    .rejectsPath(rejects)
+                    .baseInput(baseInput)
+                    .patchesInput(patchesInput)
+                    .patchedOutput(output)
+                    .rejectsOutput(rejects)
                     .minFuzz(optSet.valueOf(fuzzOpt))
                     .maxOffset(optSet.valueOf(offsetOpt))
                     .mode(optSet.valueOf(modeOpt))

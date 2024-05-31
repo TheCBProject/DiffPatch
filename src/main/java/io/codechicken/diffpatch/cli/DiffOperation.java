@@ -32,8 +32,8 @@ import static io.codechicken.diffpatch.util.Utils.filterPrefixed;
 public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
 
     private final boolean summary;
-    private final Input aPath;
-    private final Input bPath;
+    private final Input baseInput;
+    private final Input changedInput;
     private final String aPrefix;
     private final String bPrefix;
     private final boolean autoHeader;
@@ -42,11 +42,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     private final String lineEnding;
     private final String[] ignorePrefixes;
 
-    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input aPath, Input bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, Output patchOutput, String lineEnding, String[] ignorePrefixes) {
+    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input changedInput, String aPrefix, String bPrefix, boolean autoHeader, int context, Output patchOutput, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
-        this.aPath = aPath;
-        this.bPath = bPath;
+        this.baseInput = baseInput;
+        this.changedInput = changedInput;
         this.aPrefix = aPrefix;
         this.bPrefix = bPrefix;
         this.autoHeader = autoHeader;
@@ -63,8 +63,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     @Override
     public Result<DiffSummary> operate() throws IOException {
         try {
-            aPath.validate("base input");
-            bPath.validate("changed input");
+            baseInput.validate("base input");
+            changedInput.validate("changed input");
             patchOutput.validate("patch output");
         } catch (IOValidationException ex) {
             log(ERROR, ex.getMessage());
@@ -75,9 +75,9 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         FileCollector patches = new FileCollector();
         DiffSummary summary = new DiffSummary();
         // If inputs are both files, and no format is set, we are diffing singular files.
-        if (aPath instanceof SingleInput && bPath instanceof SingleInput) {
-            SingleInput base = (SingleInput) aPath;
-            SingleInput mod = (SingleInput) bPath;
+        if (baseInput instanceof SingleInput && changedInput instanceof SingleInput) {
+            SingleInput base = (SingleInput) baseInput;
+            SingleInput changed = (SingleInput) changedInput;
             if (!(patchOutput instanceof SingleOutput)) {
                 log(ERROR, "Can't specify output directory or archive when diffing single files.");
                 printHelp();
@@ -85,7 +85,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             }
             SingleOutput output = (SingleOutput) patchOutput;
 
-            List<String> lines = doDiff(summary, base.name(), mod.name(), base.readLines(), mod.readLines(), context, autoHeader);
+            List<String> lines = doDiff(summary, base.name(), changed.name(), base.readLines(), changed.readLines(), context, autoHeader);
             boolean changes = false;
             if (!lines.isEmpty()) {
                 changes = true;
@@ -99,25 +99,25 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return new Result<>(changes ? 1 : 0, summary);
         }
 
-        if (!(aPath instanceof MultiInput)) {
+        if (!(baseInput instanceof MultiInput)) {
             log(ERROR, "Can't diff between single files and folders/archives.");
             printHelp();
             return new Result<>(-1);
         }
 
-        if (!(bPath instanceof MultiInput)) {
+        if (!(changedInput instanceof MultiInput)) {
             log(ERROR, "Can't diff between folders/archives and single files.");
             printHelp();
             return new Result<>(-1);
         }
 
-        try (MultiInput aInput = (MultiInput) aPath;
-             MultiInput bInput = (MultiInput) bPath) {
-            aInput.open("");
-            bInput.open("");
-            Set<String> aIndex = filterPrefixed(aInput.index(), ignorePrefixes);
-            Set<String> bIndex = filterPrefixed(bInput.index(), ignorePrefixes);
-            doDiff(patches, summary, aIndex, bIndex, aInput, bInput, context, autoHeader);
+        try (MultiInput base = (MultiInput) baseInput;
+             MultiInput changed = (MultiInput) changedInput) {
+            base.open("");
+            changed.open("");
+            Set<String> aIndex = filterPrefixed(base.index(), ignorePrefixes);
+            Set<String> bIndex = filterPrefixed(changed.index(), ignorePrefixes);
+            doDiff(patches, summary, aIndex, bIndex, base, changed, context, autoHeader);
         }
 
         boolean changes = false;
@@ -272,11 +272,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         private Consumer<PrintStream> helpCallback = SneakyUtils.nullCons();
         private LogLevel level = LogLevel.WARN;
         private boolean summary;
-        private @Nullable Input aPath;
-        private @Nullable Input bPath;
+        private @Nullable Input baseInput;
+        private @Nullable Input changedInput;
         private boolean autoHeader;
         private int context = Differ.DEFAULT_CONTEXT;
-        private @Nullable Output outputPath;
+        private @Nullable Output patchesOutput;
         private String aPrefix = "a/";
         private String bPrefix = "b/";
         private String lineEnding = System.lineSeparator();
@@ -310,13 +310,13 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return this;
         }
 
-        public Builder aPath(Input aPath) {
-            this.aPath = Objects.requireNonNull(aPath);
+        public Builder baseInput(Input baseInput) {
+            this.baseInput = Objects.requireNonNull(baseInput);
             return this;
         }
 
-        public Builder bPath(Input bPath) {
-            this.bPath = Objects.requireNonNull(bPath);
+        public Builder changedInput(Input changedInput) {
+            this.changedInput = Objects.requireNonNull(changedInput);
             return this;
         }
 
@@ -340,8 +340,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return this;
         }
 
-        public Builder outputPath(Output outputPath) {
-            this.outputPath = Objects.requireNonNull(outputPath);
+        public Builder patchesOutput(Output patchesOutput) {
+            this.patchesOutput = Objects.requireNonNull(patchesOutput);
             return this;
         }
 
@@ -356,17 +356,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         }
 
         public DiffOperation build() {
-            if (aPath == null) {
-                throw new IllegalStateException("aPath not set.");
-            }
-            if (bPath == null) {
-                throw new IllegalStateException("bPath not set.");
-            }
-            if (outputPath == null) {
-                throw new IllegalStateException("output not set.");
-            }
-            return new DiffOperation(logger, level, helpCallback, summary, aPath, bPath, aPrefix, bPrefix, autoHeader, context, outputPath, lineEnding, ignorePrefixes.toArray(new String[0]));
-        }
+            if (baseInput == null) throw new IllegalStateException("baseInput is required.");
+            if (changedInput == null) throw new IllegalStateException("changedInput is required.");
+            if (patchesOutput == null) throw new IllegalStateException("patchesOutput is required.");
 
+            return new DiffOperation(logger, level, helpCallback, summary, baseInput, changedInput, aPrefix, bPrefix, autoHeader, context, patchesOutput, lineEnding, ignorePrefixes.toArray(new String[0]));
+        }
     }
 }
