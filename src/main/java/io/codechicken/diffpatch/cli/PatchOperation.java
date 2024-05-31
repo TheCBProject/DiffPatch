@@ -31,12 +31,12 @@ import static org.apache.commons.lang3.StringUtils.removeStart;
 public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> {
 
     private final boolean summary;
-    private final Input basePath;
-    private final Input patchesPath;
+    private final Input baseInput;
+    private final Input patchesInput;
     private final String aPrefix;
     private final String bPrefix;
-    private final Output outputPath;
-    private final @Nullable Output rejectsPath;
+    private final Output patchedOutput;
+    private final @Nullable Output rejectsOutput;
     private final float minFuzz;
     private final int maxOffset;
     private final PatchMode mode;
@@ -44,15 +44,15 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     private final String lineEnding;
     private final String[] ignorePrefixes;
 
-    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input basePath, Input patchesPath, String aPrefix, String bPrefix, Output outputPath, @Nullable Output rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
+    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input patchesInput, String aPrefix, String bPrefix, Output patchedOutput, @Nullable Output rejectsOutput, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
-        this.basePath = basePath;
-        this.patchesPath = patchesPath;
+        this.baseInput = baseInput;
+        this.patchesInput = patchesInput;
         this.aPrefix = aPrefix;
         this.bPrefix = bPrefix;
-        this.outputPath = outputPath;
-        this.rejectsPath = rejectsPath;
+        this.patchedOutput = patchedOutput;
+        this.rejectsOutput = rejectsOutput;
         this.minFuzz = minFuzz;
         this.maxOffset = maxOffset;
         this.mode = mode;
@@ -68,11 +68,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     @Override
     public Result<PatchesSummary> operate() throws IOException {
         try {
-            basePath.validate("base input");
-            basePath.validate("patches input");
-            outputPath.validate("patched output");
-            if (rejectsPath != null) {
-                rejectsPath.validate("rejects output");
+            baseInput.validate("base input");
+            baseInput.validate("patches input");
+            patchedOutput.validate("patched output");
+            if (rejectsOutput != null) {
+                rejectsOutput.validate("rejects output");
             }
         } catch (IOValidationException ex) {
             log(ERROR, ex.getMessage());
@@ -86,25 +86,25 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         boolean patchSuccess;
 
         //Base path and patch path are both singular files.
-        if (basePath instanceof SingleInput && patchesPath instanceof SingleInput) {
-            SingleInput baseInput = (SingleInput) basePath;
-            SingleInput patchesInput = (SingleInput) patchesPath;
-            if (!(outputPath instanceof SingleOutput)) {
+        if (baseInput instanceof SingleInput && patchesInput instanceof SingleInput) {
+            SingleInput base = (SingleInput) baseInput;
+            SingleInput patches = (SingleInput) patchesInput;
+            if (!(patchedOutput instanceof SingleOutput)) {
                 log(ERROR, "Can't specify patched output directory or archive when patching single file.");
                 printHelp();
                 return new Result<>(-1);
             }
-            SingleOutput output = (SingleOutput) outputPath;
+            SingleOutput output = (SingleOutput) patchedOutput;
 
-            if (rejectsPath != null && !(rejectsPath instanceof SingleOutput)) {
+            if (rejectsOutput != null && !(rejectsOutput instanceof SingleOutput)) {
                 log(ERROR, "Can't specify reject output directory or archive when patching single file.");
                 printHelp();
                 return new Result<>(-1);
             }
-            SingleOutput rejects = (SingleOutput) rejectsPath;
+            SingleOutput rejects = (SingleOutput) rejectsOutput;
 
-            PatchFile patchFile = PatchFile.fromLines(patchesInput.name(), patchesInput.readLines(), true);
-            boolean success = doPatch(outputCollector, rejectCollector, summary, baseInput.name(), baseInput.readLines(), patchFile, minFuzz, maxOffset, mode);
+            PatchFile patchFile = PatchFile.fromLines(patches.name(), patches.readLines(), true);
+            boolean success = doPatch(outputCollector, rejectCollector, summary, base.name(), base.readLines(), patchFile, minFuzz, maxOffset, mode);
             CollectedEntry outputEntry = outputCollector.getSingleFile();
             CollectedEntry rejectEntry = rejectCollector.getSingleFile();
             try (OutputStream os = output.open()) {
@@ -123,36 +123,36 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return new Result<>(success ? 0 : 1, summary);
         }
 
-        if (!(basePath instanceof MultiInput)) {
+        if (!(baseInput instanceof MultiInput)) {
             log(ERROR, "Can't patch between single files and folders/archives.");
             printHelp();
             return new Result<>(-1);
         }
 
-        if (!(patchesPath instanceof MultiInput)) {
+        if (!(patchesInput instanceof MultiInput)) {
             log(ERROR, "Can't patch between folders/archives and single files.");
             printHelp();
             return new Result<>(-1);
         }
 
-        try (MultiInput baseInput = (MultiInput) basePath;
-             MultiInput patchesInput = (MultiInput) patchesPath) {
-            baseInput.open("");
-            patchesInput.open(patchesPrefix);
-            Set<String> baseIndex = filterPrefixed(baseInput.index(), ignorePrefixes);
-            Set<String> patchesIndex = patchesInput.index();
-            patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchesIndex, baseInput, patchesInput, minFuzz, maxOffset, mode);
+        try (MultiInput base = (MultiInput) baseInput;
+             MultiInput patches = (MultiInput) patchesInput) {
+            base.open("");
+            patches.open(patchesPrefix);
+            Set<String> baseIndex = filterPrefixed(base.index(), ignorePrefixes);
+            Set<String> patchesIndex = patches.index();
+            patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchesIndex, base, patches, minFuzz, maxOffset, mode);
         }
 
-        try (MultiOutput output = (MultiOutput) outputPath) {
-            output.open(!outputPath.isSamePath(basePath));
+        try (MultiOutput output = (MultiOutput) patchedOutput) {
+            output.open(!patchedOutput.isSamePath(baseInput));
             for (Map.Entry<String, CollectedEntry> entry : outputCollector.get().entrySet()) {
                 output.write(entry.getKey(), entry.getValue().toBytes(lineEnding, false));
             }
         }
 
-        if (rejectsPath != null) {
-            try (MultiOutput output = (MultiOutput) rejectsPath) {
+        if (rejectsOutput != null) {
+            try (MultiOutput output = (MultiOutput) rejectsOutput) {
                 output.open(true);
                 for (Map.Entry<String, CollectedEntry> entry : rejectCollector.get().entrySet()) {
                     output.write(entry.getKey(), entry.getValue().toBytes(lineEnding, true));
@@ -353,7 +353,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             logger.println(" Offset matches:   " + offsetMatches);
             logger.println(" Fuzzy matches:    " + fuzzyMatches);
 
-            logger.println(String.format("Overall Quality   %.2f%%", overallQuality / (failedMatches + exactMatches + accessMatches + offsetMatches + fuzzyMatches)));
+            logger.printf("Overall Quality   %.2f%%%n", overallQuality / (failedMatches + exactMatches + accessMatches + offsetMatches + fuzzyMatches));
         }
     }
 
@@ -365,10 +365,10 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private Consumer<PrintStream> helpCallback = SneakyUtils.nullCons();
         private LogLevel level = LogLevel.WARN;
         private boolean summary;
-        private @Nullable Input basePath;
-        private @Nullable Input patchesPath;
-        private @Nullable Output outputPath;
-        private @Nullable Output rejectsPath;
+        private @Nullable Input baseInput;
+        private @Nullable Input patchesInput;
+        private @Nullable Output patchedOutput;
+        private @Nullable Output rejectsOutput;
         private float minFuzz = FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE;
         private int maxOffset = FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET;
         private PatchMode mode = PatchMode.EXACT;
@@ -407,13 +407,13 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return this;
         }
 
-        public Builder basePath(Input basePath) {
-            this.basePath = Objects.requireNonNull(basePath);
+        public Builder baseInput(Input baseInput) {
+            this.baseInput = Objects.requireNonNull(baseInput);
             return this;
         }
 
-        public Builder patchesPath(Input patchesPath) {
-            this.patchesPath = Objects.requireNonNull(patchesPath);
+        public Builder patchesInput(Input patchesInput) {
+            this.patchesInput = Objects.requireNonNull(patchesInput);
             return this;
         }
 
@@ -427,13 +427,13 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return this;
         }
 
-        public Builder outputPath(Output outputPath) {
-            this.outputPath = Objects.requireNonNull(outputPath);
+        public Builder patchedOutput(Output patchedOutput) {
+            this.patchedOutput = Objects.requireNonNull(patchedOutput);
             return this;
         }
 
-        public Builder rejectsPath(Output rejectsPath) {
-            this.rejectsPath = Objects.requireNonNull(rejectsPath);
+        public Builder rejectsOutput(@Nullable Output rejectsOutput) {
+            this.rejectsOutput = rejectsOutput;
             return this;
         }
 
@@ -468,17 +468,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         }
 
         public PatchOperation build() {
-            if (basePath == null) {
-                throw new IllegalStateException("basePath not set.");
-            }
-            if (patchesPath == null) {
-                throw new IllegalStateException("patchesPath not set.");
-            }
-            if (outputPath == null) {
-                throw new IllegalStateException("output not set.");
-            }
-            return new PatchOperation(logger, level, helpCallback, summary, basePath, patchesPath, aPrefix, bPrefix, outputPath, rejectsPath, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
-        }
+            if (baseInput == null) throw new IllegalStateException("baseInput is required.");
+            if (patchesInput == null) throw new IllegalStateException("patchesInput is required.");
+            if (patchedOutput == null) throw new IllegalStateException("patchedOutput is required.");
 
+            return new PatchOperation(logger, level, helpCallback, summary, baseInput, patchesInput, aPrefix, bPrefix, patchedOutput, rejectsOutput, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
+        }
     }
 }
