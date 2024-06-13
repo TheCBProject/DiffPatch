@@ -1,8 +1,6 @@
-package io.codechicken.diffpatch.test;
+package io.codechicken.diffpatch.util.archiver;
 
-import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
-import io.codechicken.diffpatch.util.archiver.ArchiveReader;
-import io.codechicken.diffpatch.util.archiver.ArchiveWriter;
+import io.codechicken.diffpatch.test.TestBase;
 import joptsimple.internal.Strings;
 import org.junit.jupiter.api.Test;
 
@@ -18,8 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 /**
  * Created by covers1624 on 11/2/21.
  */
-public class ArchiveFormatTest extends TestBase {
-
+public class ArchiveFormatTests extends TestBase {
 
     @Test
     public void testDetection() {
