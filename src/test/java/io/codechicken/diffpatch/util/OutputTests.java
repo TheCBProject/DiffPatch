@@ -2,7 +2,6 @@ package io.codechicken.diffpatch.util;
 
 import io.codechicken.diffpatch.test.TestBase;
 import io.codechicken.diffpatch.util.Output.MultiOutput;
-import io.codechicken.diffpatch.util.Output.OutputValidationException;
 import io.codechicken.diffpatch.util.Output.SingleOutput;
 import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
 import io.codechicken.diffpatch.util.archiver.ArchiveReader;
@@ -44,7 +43,7 @@ public class OutputTests extends TestBase {
 
     @Test
     public void testSingleOutputFilePreconditions(@TempDir Path tempDir) throws IOException {
-        assertThrows(OutputValidationException.class, () -> SingleOutput.path(tempDir).validate("asdf"));
+        assertThrows(IOValidationException.class, () -> SingleOutput.path(tempDir).validate("asdf"));
         assertDoesNotThrow(() -> SingleOutput.path(tempDir.resolve("test.txt")).validate("asdf"));
         Files.createFile(tempDir.resolve("test.txt"));
         assertDoesNotThrow(() -> SingleOutput.path(tempDir.resolve("test.txt")).validate("asdf"));
@@ -55,7 +54,7 @@ public class OutputTests extends TestBase {
         assertDoesNotThrow(() -> MultiOutput.folder(tempDir).validate("asdf"));
         assertDoesNotThrow(() -> MultiOutput.folder(tempDir.resolve("test.txt")).validate("asdf"));
         Files.createFile(tempDir.resolve("test.txt"));
-        assertThrows(OutputValidationException.class, () -> MultiOutput.folder(tempDir.resolve("test.txt")).validate("asdf"));
+        assertThrows(IOValidationException.class, () -> MultiOutput.folder(tempDir.resolve("test.txt")).validate("asdf"));
     }
 
     @Test
@@ -80,7 +79,7 @@ public class OutputTests extends TestBase {
 
     @Test
     public void testMultiOutputArchivePath(@TempDir Path tempDir) throws IOException {
-        assertThrows(OutputValidationException.class, () -> SingleOutput.path(tempDir).validate("asdf"));
+        assertThrows(IOValidationException.class, () -> SingleOutput.path(tempDir).validate("asdf"));
         assertDoesNotThrow(() -> MultiOutput.archive(ArchiveFormat.ZIP, tempDir.resolve("test.zip")).validate("asdf"));
         Files.createFile(tempDir.resolve("test.zip"));
         assertDoesNotThrow(() -> MultiOutput.archive(ArchiveFormat.ZIP, tempDir.resolve("test.zip")).validate("asdf"));
