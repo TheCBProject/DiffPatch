@@ -5,7 +5,9 @@ import io.codechicken.diffpatch.diff.Differ;
 import io.codechicken.diffpatch.match.FuzzyLineMatcher;
 import io.codechicken.diffpatch.util.InputPath;
 import io.codechicken.diffpatch.util.LogLevel;
-import io.codechicken.diffpatch.util.OutputPath;
+import io.codechicken.diffpatch.util.Output;
+import io.codechicken.diffpatch.util.Output.MultiOutput;
+import io.codechicken.diffpatch.util.Output.SingleOutput;
 import io.codechicken.diffpatch.util.PatchMode;
 import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
 import joptsimple.OptionParser;
@@ -17,6 +19,7 @@ import net.covers1624.quack.util.SneakyUtils;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -119,22 +122,23 @@ public class DiffPatch {
 
         CliOperation<?> operation;
         if (optSet.has(doDiffOpt)) {
-
             Path a = Paths.get(arguments.get(0));
             Path b = Paths.get(arguments.get(1));
-            Path output = optSet.valueOf(outputOpt);
+            Path outputPath = optSet.valueOf(outputOpt);
 
             ArchiveFormat outputFormat = optSet.valueOf(archiveOpt);
 
-            if (outputFormat == null && output != null) {
-                outputFormat = ArchiveFormat.findFormat(output.getFileName());
+            if (outputFormat == null && outputPath != null) {
+                outputFormat = ArchiveFormat.findFormat(outputPath.getFileName());
             }
 
-            OutputPath outputPath;
-            if (output != null) {
-                outputPath = new OutputPath.FilePath(output, outputFormat);
+            Output output;
+            if (outputFormat != null) {
+                output = outputPath != null ? MultiOutput.archive(outputFormat, outputPath) : MultiOutput.archive(outputFormat, pipe);
+            } else if (outputPath != null) {
+                output = Files.isDirectory(outputPath) ? MultiOutput.folder(outputPath) : SingleOutput.path(outputPath);
             } else {
-                outputPath = new OutputPath.PipePath(pipe, outputFormat);
+                output = SingleOutput.pipe(pipe);
             }
 
             operation = DiffOperation.builder()
@@ -142,40 +146,45 @@ public class DiffPatch {
                     .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
                     .aPath(a, ArchiveFormat.findFormat(a.getFileName()))
                     .bPath(b, ArchiveFormat.findFormat(b.getFileName()))
-                    .outputPath(outputPath)
+                    .outputPath(output)
                     .level(level)
                     .summary(summary)
                     .autoHeader(optSet.has(autoHeaderOpt))
                     .context(optSet.valueOf(contextOpt))
                     .build();
         } else if (optSet.has(doPatchOpt)) {
-
             Path base = Paths.get(arguments.get(0));
             Path patches = Paths.get(arguments.get(1));
-            Path output = optSet.valueOf(outputOpt);
-            Path rejects = optSet.valueOf(rejectOpt);
+            Path outputPath = optSet.valueOf(outputOpt);
+            Path rejectsPath = optSet.valueOf(rejectOpt);
             ArchiveFormat outputFormat = optSet.valueOf(archiveOpt);
             ArchiveFormat rejectsFormat = optSet.valueOf(rejectArchiveOpt);
 
-            if (outputFormat == null && output != null) {
-                outputFormat = ArchiveFormat.findFormat(output.getFileName());
+            if (outputFormat == null && outputPath != null) {
+                outputFormat = ArchiveFormat.findFormat(outputPath.getFileName());
             }
 
-            if (rejectsFormat == null && rejects != null) {
-                rejectsFormat = ArchiveFormat.findFormat(rejects.getFileName());
+            if (rejectsFormat == null && rejectsPath != null) {
+                rejectsFormat = ArchiveFormat.findFormat(rejectsPath.getFileName());
             }
 
             InputPath basePath = new InputPath.FilePath(base, ArchiveFormat.findFormat(base.getFileName()));
             InputPath patchesPath = new InputPath.FilePath(patches, ArchiveFormat.findFormat(patches.getFileName()));
-            OutputPath outputPath;
-            if (output != null) {
-                outputPath = new OutputPath.FilePath(output, outputFormat);
+            Output output;
+            if (outputFormat != null) {
+                output = outputPath != null ? MultiOutput.archive(outputFormat, outputPath) : MultiOutput.archive(outputFormat, pipe);
+            } else if (outputPath != null) {
+                output = Files.isDirectory(outputPath) ? MultiOutput.folder(outputPath) : SingleOutput.path(outputPath);
             } else {
-                outputPath = new OutputPath.PipePath(pipe, outputFormat);
+                output = SingleOutput.pipe(pipe);
             }
-            OutputPath rejectsPath = OutputPath.NullPath.INSTANCE;
-            if (rejects != null) {
-                rejectsPath = new OutputPath.FilePath(rejects, rejectsFormat);
+            Output rejects = null;
+            if (rejectsPath != null) {
+                if (rejectsFormat != null) {
+                    rejects = MultiOutput.archive(rejectsFormat, rejectsPath);
+                } else {
+                    rejects = Files.isDirectory(rejectsPath) ? MultiOutput.folder(rejectsPath) : SingleOutput.path(rejectsPath);
+                }
             }
 
             operation = PatchOperation.builder()
@@ -185,8 +194,8 @@ public class DiffPatch {
                     .summary(summary)
                     .basePath(basePath)
                     .patchesPath(patchesPath)
-                    .outputPath(outputPath)
-                    .rejectsPath(rejectsPath)
+                    .outputPath(output)
+                    .rejectsPath(rejects)
                     .minFuzz(optSet.valueOf(fuzzOpt))
                     .maxOffset(optSet.valueOf(offsetOpt))
                     .mode(optSet.valueOf(modeOpt))

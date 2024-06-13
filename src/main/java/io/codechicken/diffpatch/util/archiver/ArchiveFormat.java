@@ -10,6 +10,7 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,7 +71,7 @@ public enum ArchiveFormat {
      * @param fName The File name.
      * @return The assumed {@link ArchiveFormat} or null if one cannot be found.
      */
-    public static ArchiveFormat findFormat(String fName) {
+    public static @Nullable ArchiveFormat findFormat(String fName) {
         for (ArchiveFormat format : values()) {
             for (String ext : format.fileExtensions) {
                 if (fName.endsWith(ext)) {
@@ -81,7 +82,7 @@ public enum ArchiveFormat {
         return null;
     }
 
-    public static ArchiveFormat findFormat(Path fName) {
+    public static @Nullable ArchiveFormat findFormat(Path fName) {
         return findFormat(fName.toString());
     }
 
