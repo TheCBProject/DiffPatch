@@ -25,12 +25,6 @@ public class Utils {
         return str;
     }
 
-    public static void deleteFolder(Path folder) throws IOException {
-        try (Stream<Path> stream = Files.walk(folder)) {
-            stream.sorted(Comparator.reverseOrder()).forEach(SneakyUtils.sneak(Files::delete));
-        }
-    }
-
     public static Map<String, Path> indexChildren(Path toIndex) throws IOException {
         return indexChildren(toIndex, "");
     }

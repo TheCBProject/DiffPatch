@@ -4,11 +4,11 @@ import io.codechicken.diffpatch.diff.Differ;
 import io.codechicken.diffpatch.diff.PatienceDiffer;
 import io.codechicken.diffpatch.util.*;
 import io.codechicken.diffpatch.util.FileCollector.CollectedEntry;
+import io.codechicken.diffpatch.util.Output.MultiOutput;
+import io.codechicken.diffpatch.util.Output.SingleOutput;
 import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
 import io.codechicken.diffpatch.util.archiver.ArchiveReader;
-import io.codechicken.diffpatch.util.archiver.ArchiveWriter;
 import net.covers1624.quack.collection.FastStream;
-import net.covers1624.quack.io.IOUtils;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -38,11 +38,11 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     private final String bPrefix;
     private final boolean autoHeader;
     private final int context;
-    private final OutputPath outputPath;
+    private final Output patchOutput;
     private final String lineEnding;
     private final String[] ignorePrefixes;
 
-    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath aPath, InputPath bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, OutputPath outputPath, String lineEnding, String[] ignorePrefixes) {
+    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath aPath, InputPath bPath, String aPrefix, String bPrefix, boolean autoHeader, int context, Output patchOutput, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.aPath = aPath;
@@ -51,7 +51,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         this.bPrefix = bPrefix;
         this.autoHeader = autoHeader;
         this.context = context;
-        this.outputPath = outputPath;
+        this.patchOutput = patchOutput;
         this.lineEnding = lineEnding;
         this.ignorePrefixes = ignorePrefixes;
     }
@@ -71,25 +71,30 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return new Result<>(-1);
         }
 
+        try {
+            patchOutput.validate("patch output");
+        } catch (Output.OutputValidationException ex) {
+            log(ERROR, ex.getMessage());
+            printHelp();
+            return new Result<>(-1);
+        }
+
         FileCollector patches = new FileCollector();
         DiffSummary summary = new DiffSummary();
-        //If inputs are both files, and no format is set, we are diffing singular files.
+        // If inputs are both files, and no format is set, we are diffing singular files.
         if (aPath.isFile() && bPath.isFile() && aPath.getFormat() == null && bPath.getFormat() == null) {
-            if (outputPath.getFormat() != null) {
-                log(ERROR, "Can't specify output format when diffing regular files.");
+            if (!(patchOutput instanceof SingleOutput)) {
+                log(ERROR, "Can't specify output directory or archive when diffing single files.");
                 printHelp();
                 return new Result<>(-1);
             }
-            if (outputPath.getType().isPath() && Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
-                log(ERROR, "Output already exists and is not a file.");
-                printHelp();
-                return new Result<>(-1);
-            }
+            SingleOutput output = (SingleOutput) patchOutput;
+
             List<String> lines = doDiff(summary, aPath.toPath().toString(), bPath.toPath().toString(), aPath.readAllLines(), bPath.readAllLines(), context, autoHeader);
             boolean changes = false;
             if (!lines.isEmpty()) {
                 changes = true;
-                try (PrintWriter out = new PrintWriter(outputPath.open())) {
+                try (PrintWriter out = new PrintWriter(output.open())) {
                     out.println(String.join(lineEnding, lines) + lineEnding);
                 }
             }
@@ -97,22 +102,6 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                 summary.print(logger, true);
             }
             return new Result<>(changes ? 1 : 0, summary);
-        }
-
-        if (outputPath.getType().isPath()) {
-            if (outputPath.getFormat() != null) {
-                if (Files.exists(outputPath.toPath()) && !Files.isRegularFile(outputPath.toPath())) {
-                    log(ERROR, "Output already exists and is not a file.");
-                    printHelp();
-                    return new Result<>(-1);
-                }
-            } else {
-                if (Files.exists(outputPath.toPath()) && !Files.isDirectory(outputPath.toPath())) {
-                    log(ERROR, "Output already exists and is not a directory.");
-                    printHelp();
-                    return new Result<>(-1);
-                }
-            }
         }
 
         //If both inputs are files at this point, must be archives.
@@ -185,8 +174,9 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         boolean changes = false;
         if (!patches.isEmpty()) {
             changes = true;
-            if (outputPath.getType().isPipe() && outputPath.getFormat() == null) {
-                try (PrintWriter out = new PrintWriter(outputPath.open())) {
+            if (patchOutput instanceof SingleOutput) {
+                SingleOutput singleOut = (SingleOutput) patchOutput;
+                try (PrintWriter out = new PrintWriter(singleOut.open())) {
                     for (CollectedEntry entry : patches.values()) {
                         // Safe, we only add generated lines to this collector.
                         List<String> lines = ((FileCollector.LinesCollectedEntry) entry).lines;
@@ -196,19 +186,12 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
                         });
                     }
                 }
-            } else if (outputPath.getFormat() != null) {
-                try (ArchiveWriter writer = outputPath.getFormat().createWriter(outputPath.open())) {
-                    for (Map.Entry<String, CollectedEntry> entry : patches.get().entrySet()) {
-                        writer.writeEntry(entry.getKey(), entry.getValue().toBytes(lineEnding, true));
-                    }
-                }
             } else {
-                if (Files.exists(outputPath.toPath())) {
-                    Utils.deleteFolder(outputPath.toPath());
-                }
-                for (Map.Entry<String, CollectedEntry> entry : patches.get().entrySet()) {
-                    Path path = outputPath.toPath().resolve(entry.getKey());
-                    Files.write(IOUtils.makeParents(path), entry.getValue().toBytes(lineEnding, true));
+                try (MultiOutput output = (MultiOutput) patchOutput) {
+                    output.open(true);
+                    for (Map.Entry<String, CollectedEntry> entry : patches.get().entrySet()) {
+                        output.write(entry.getKey(), entry.getValue().toBytes(lineEnding, true));
+                    }
                 }
             }
         }
@@ -349,7 +332,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         private @Nullable InputPath bPath;
         private boolean autoHeader;
         private int context = Differ.DEFAULT_CONTEXT;
-        private @Nullable OutputPath outputPath;
+        private @Nullable Output outputPath;
         private String aPrefix = "a/";
         private String bPrefix = "b/";
         private String lineEnding = System.lineSeparator();
@@ -445,21 +428,9 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return this;
         }
 
-        public Builder outputPath(OutputPath outputPath) {
+        public Builder outputPath(Output outputPath) {
             this.outputPath = Objects.requireNonNull(outputPath);
             return this;
-        }
-
-        public Builder outputPath(Path output) {
-            return outputPath(output, ArchiveFormat.findFormat(output.getFileName()));
-        }
-
-        public Builder outputPath(Path output, ArchiveFormat format) {
-            return outputPath(new OutputPath.FilePath(Objects.requireNonNull(output), format));
-        }
-
-        public Builder outputPath(OutputStream output, ArchiveFormat format) {
-            return outputPath(new OutputPath.PipePath(Objects.requireNonNull(output), Objects.requireNonNull(format)));
         }
 
         public Builder lineEnding(String lineEnding) {

@@ -18,9 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 /**
  * Created by covers1624 on 11/2/21.
  */
-public class ArchiveFormatTest {
+public class ArchiveFormatTest extends TestBase {
 
-    private static final char[] HEX = "0123456789ABCDEF".toCharArray();
 
     @Test
     public void testDetection() {
@@ -115,30 +114,4 @@ public class ArchiveFormatTest {
             }
         }
     }
-
-    public static Map<String, List<String>> generateRandomFiles(Random randy) {
-        Map<String, List<String>> files = new LinkedHashMap<>();
-
-        int numFiles = 10 + randy.nextInt(100);
-        for (int i = 0; i < numFiles; i++) {
-            String fileName = generateRandomHex(randy, 8) + ".txt";
-            int numLines = 10 + randy.nextInt(100);
-            List<String> lines = new ArrayList<>(numLines);
-            for (int j = 0; j < numLines; j++) {
-                lines.add(generateRandomHex(randy, 5 + randy.nextInt(100)));
-            }
-            files.put(fileName, lines);
-        }
-
-        return files;
-    }
-
-    public static String generateRandomHex(Random randy, int len) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < len; i++) {
-            builder.append(HEX[randy.nextInt(HEX.length)]);
-        }
-        return builder.toString();
-    }
-
 }

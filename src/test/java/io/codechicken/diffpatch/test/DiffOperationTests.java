@@ -3,6 +3,7 @@ package io.codechicken.diffpatch.test;
 import io.codechicken.diffpatch.cli.CliOperation;
 import io.codechicken.diffpatch.cli.DiffOperation;
 import io.codechicken.diffpatch.util.LogLevel;
+import io.codechicken.diffpatch.util.Output.MultiOutput;
 import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
 import io.codechicken.diffpatch.util.archiver.ArchiveReader;
 import io.codechicken.diffpatch.util.archiver.ArchiveWriter;
@@ -40,7 +41,7 @@ public class DiffOperationTests {
                 .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
-                .outputPath(patches)
+                .outputPath(MultiOutput.folder(patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -61,7 +62,7 @@ public class DiffOperationTests {
                 .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
-                .outputPath(patches)
+                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -86,7 +87,7 @@ public class DiffOperationTests {
                 .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
-                .outputPath(os, ArchiveFormat.ZIP)
+                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, os))
                 .build()
                 .operate();
         os.close();
@@ -113,7 +114,7 @@ public class DiffOperationTests {
                 .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
-                .outputPath(patches)
+                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -139,7 +140,7 @@ public class DiffOperationTests {
                 .level(LogLevel.ALL)
                 .aPath(Files.readAllBytes(orig), ArchiveFormat.ZIP)
                 .bPath(src)
-                .outputPath(patches)
+                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -165,7 +166,7 @@ public class DiffOperationTests {
                 .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(src)
-                .outputPath(patches)
+                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
@@ -191,7 +192,7 @@ public class DiffOperationTests {
                 .level(LogLevel.ALL)
                 .aPath(orig)
                 .bPath(Files.readAllBytes(src), ArchiveFormat.ZIP)
-                .outputPath(patches)
+                .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
         assertEquals(1, result.exit);
