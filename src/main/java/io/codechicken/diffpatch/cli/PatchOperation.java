@@ -4,30 +4,25 @@ import io.codechicken.diffpatch.match.FuzzyLineMatcher;
 import io.codechicken.diffpatch.patch.Patcher;
 import io.codechicken.diffpatch.util.*;
 import io.codechicken.diffpatch.util.FileCollector.CollectedEntry;
+import io.codechicken.diffpatch.util.Input.MultiInput;
+import io.codechicken.diffpatch.util.Input.SingleInput;
 import io.codechicken.diffpatch.util.Output.MultiOutput;
 import io.codechicken.diffpatch.util.Output.SingleOutput;
-import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
-import io.codechicken.diffpatch.util.archiver.ArchiveReader;
 import net.covers1624.quack.collection.FastStream;
-import net.covers1624.quack.io.IOUtils;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static io.codechicken.diffpatch.util.LogLevel.*;
 import static io.codechicken.diffpatch.util.Utils.filterPrefixed;
-import static io.codechicken.diffpatch.util.Utils.indexChildren;
-import static net.covers1624.quack.util.SneakyUtils.sneak;
-import static org.apache.commons.lang3.StringUtils.appendIfMissing;
 import static org.apache.commons.lang3.StringUtils.removeStart;
 
 /**
@@ -36,8 +31,8 @@ import static org.apache.commons.lang3.StringUtils.removeStart;
 public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> {
 
     private final boolean summary;
-    private final InputPath basePath;
-    private final InputPath patchesPath;
+    private final Input basePath;
+    private final Input patchesPath;
     private final String aPrefix;
     private final String bPrefix;
     private final Output outputPath;
@@ -49,7 +44,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     private final String lineEnding;
     private final String[] ignorePrefixes;
 
-    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, InputPath basePath, InputPath patchesPath, String aPrefix, String bPrefix, Output outputPath, @Nullable Output rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
+    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input basePath, Input patchesPath, String aPrefix, String bPrefix, Output outputPath, @Nullable Output rejectsPath, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.basePath = basePath;
@@ -72,21 +67,14 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
     @Override
     public Result<PatchesSummary> operate() throws IOException {
-        if (!basePath.exists()) {
-            log(ERROR, "Base file doesn't exist.");
-            return new Result<>(-1);
-        }
-        if (!patchesPath.exists()) {
-            log(ERROR, "Patch file doesn't exist.");
-            return new Result<>(-1);
-        }
-
         try {
+            basePath.validate("base input");
+            basePath.validate("patches input");
             outputPath.validate("patched output");
             if (rejectsPath != null) {
                 rejectsPath.validate("rejects output");
             }
-        } catch (Output.OutputValidationException ex) {
+        } catch (IOValidationException ex) {
             log(ERROR, ex.getMessage());
             printHelp();
             return new Result<>(-1);
@@ -98,7 +86,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         boolean patchSuccess;
 
         //Base path and patch path are both singular files.
-        if (basePath.isFile() && patchesPath.isFile() && basePath.getFormat() == null && patchesPath.getFormat() == null) {
+        if (basePath instanceof SingleInput && patchesPath instanceof SingleInput) {
+            SingleInput baseInput = (SingleInput) basePath;
+            SingleInput patchesInput = (SingleInput) patchesPath;
             if (!(outputPath instanceof SingleOutput)) {
                 log(ERROR, "Can't specify patched output directory or archive when patching single file.");
                 printHelp();
@@ -113,8 +103,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             }
             SingleOutput rejects = (SingleOutput) rejectsPath;
 
-            PatchFile patchFile = PatchFile.fromLines(patchesPath.toString(), patchesPath.readAllLines(), true);
-            boolean success = doPatch(outputCollector, rejectCollector, summary, basePath.toString(), basePath.readAllLines(), patchFile, minFuzz, maxOffset, mode);
+            PatchFile patchFile = PatchFile.fromLines(patchesInput.name(), patchesInput.readLines(), true);
+            boolean success = doPatch(outputCollector, rejectCollector, summary, baseInput.name(), baseInput.readLines(), patchFile, minFuzz, maxOffset, mode);
             CollectedEntry outputEntry = outputCollector.getSingleFile();
             CollectedEntry rejectEntry = rejectCollector.getSingleFile();
             try (OutputStream os = output.open()) {
@@ -133,97 +123,29 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return new Result<>(success ? 0 : 1, summary);
         }
 
-        //Both inputs are still files, both must be archives.
-        if (basePath.isFile() && patchesPath.isFile()) {
-            if (basePath.getFormat() == null) {
-                log(ERROR, "Base path is in an unknown archive format");
-                printHelp();
-                return new Result<>(-1);
-            }
-            if (patchesPath.getFormat() == null) {
-                log(ERROR, "Patches path is in an unknown archive format");
-                printHelp();
-                return new Result<>(-1);
-            }
+        if (!(basePath instanceof MultiInput)) {
+            log(ERROR, "Can't patch between single files and folders/archives.");
+            printHelp();
+            return new Result<>(-1);
+        }
 
-            try (ArchiveReader baseReader = basePath.getFormat().createReader(basePath.open())) {
-                try (ArchiveReader patchesReader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
-                    Set<String> filteredBaseIndex = filterPrefixed(baseReader.getEntries(), ignorePrefixes);
-                    patchSuccess = doPatch(
-                            outputCollector,
-                            rejectCollector,
-                            summary,
-                            filteredBaseIndex,
-                            patchesReader.getEntries(),
-                            sneak(baseReader::getBytes),
-                            sneak(patchesReader::getBytes),
-                            minFuzz,
-                            maxOffset,
-                            mode
-                    );
-                }
-            }
-        } else {
-            //Both inputs are directories.
-            if (!basePath.isFile() && !patchesPath.isFile()) {
-                Map<String, Path> baseIndex = indexChildren(basePath.toPath());
-                Map<String, Path> patchIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
-                Set<String> filteredBaseIndex = filterPrefixed(baseIndex.keySet(), ignorePrefixes);
-                patchSuccess = doPatch(
-                        outputCollector,
-                        rejectCollector,
-                        summary,
-                        filteredBaseIndex,
-                        patchIndex.keySet(),
-                        SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(baseIndex.get(e))),
-                        SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(patchIndex.get(e))),
-                        minFuzz,
-                        maxOffset,
-                        mode
-                );
-            } else {
-                //One input is a directory, the other is a file.
-                Set<String> baseIndex;
-                Function<String, byte[]> baseFunc;
-                Set<String> patchIndex;
-                Function<String, byte[]> patchFunc;
-                if (!basePath.isFile()) {
-                    if (patchesPath.getFormat() == null) {
-                        log(ERROR, "Patches file is in an unknown format, whilst Base file is a directory.");
-                        printHelp();
-                        return new Result<>(-1);
-                    }
-                    Map<String, Path> pathIndex = indexChildren(basePath.toPath());
-                    baseIndex = pathIndex.keySet();
-                    baseFunc = SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(pathIndex.get(e)));
-                    //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
-                    try (ArchiveReader reader = patchesPath.getFormat().createReader(patchesPath.open(), patchesPrefix)) {
-                        patchIndex = reader.getEntries();
-                        patchFunc = sneak(reader::getBytes);
-                    }
-                } else {
-                    if (basePath.getFormat() == null) {
-                        log(ERROR, "Base file is in an unknown format, whilst Patches file is a directory.");
-                        printHelp();
-                        return new Result<>(-1);
-                    }
-                    Map<String, Path> pathIndex = indexChildren(patchesPath.toPath(), patchesPrefix);
-                    patchIndex = pathIndex.keySet();
-                    patchFunc = SneakyUtils.<String, byte[]>sneak(e -> Files.readAllBytes(pathIndex.get(e)));
-                    //ArchiveReaders should Greedy load all data inside the archive into memory, this is safe.
-                    try (ArchiveReader reader = basePath.getFormat().createReader(basePath.open())) {
-                        baseIndex = reader.getEntries();
-                        baseFunc = sneak(reader::getBytes);
-                    }
-                }
-                baseIndex = filterPrefixed(baseIndex, ignorePrefixes);
-                patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchIndex, baseFunc, patchFunc, minFuzz, maxOffset, mode);
-            }
+        if (!(patchesPath instanceof MultiInput)) {
+            log(ERROR, "Can't patch between folders/archives and single files.");
+            printHelp();
+            return new Result<>(-1);
+        }
+
+        try (MultiInput baseInput = (MultiInput) basePath;
+             MultiInput patchesInput = (MultiInput) patchesPath) {
+            baseInput.open("");
+            patchesInput.open(patchesPrefix);
+            Set<String> baseIndex = filterPrefixed(baseInput.index(), ignorePrefixes);
+            Set<String> patchesIndex = patchesInput.index();
+            patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchesIndex, baseInput, patchesInput, minFuzz, maxOffset, mode);
         }
 
         try (MultiOutput output = (MultiOutput) outputPath) {
-            boolean inPlace = outputPath instanceof Output.FolderMultiOutput && basePath.getType().isPath() && basePath.toPath().equals(((Output.FolderMultiOutput) outputPath).folder);
-            output.open(!inPlace);
+            output.open(!outputPath.isSamePath(basePath));
             for (Map.Entry<String, CollectedEntry> entry : outputCollector.get().entrySet()) {
                 output.write(entry.getKey(), entry.getValue().toBytes(lineEnding, false));
             }
@@ -243,11 +165,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return new Result<>(patchSuccess ? 0 : 1, summary);
     }
 
-    private boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, Function<String, byte[]> bFunc, Function<String, byte[]> pFunc, float minFuzz, int maxOffset, PatchMode mode) throws IOException {
+    private boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, MultiInput baseInput, MultiInput patchesInput, float minFuzz, int maxOffset, PatchMode mode) throws IOException {
         Map<String, PatchFile> patchFiles = FastStream.of(pEntries)
                 .map(e -> {
                     try {
-                        return PatchFile.fromLines(e, IOUtils.readAll(pFunc.apply(e)), true);
+                        return PatchFile.fromLines(e, patchesInput.readLines(e), true);
                     } catch (IOException ex) {
                         throw new RuntimeException("Failed to read patch file.", ex);
                     }
@@ -274,7 +196,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         boolean result = true;
         for (String file : notPatched) {
             summary.unchangedFiles++;
-            oCollector.consume(file, bFunc.apply(file));
+            oCollector.consume(file, baseInput.read(file));
         }
 
         for (String file : addedFiles) {
@@ -292,7 +214,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         for (String file : patchedFiles) {
             summary.changedFiles++;
             PatchFile patchFile = patchFiles.get(file);
-            List<String> baseLines = IOUtils.readAll(bFunc.apply(file));
+            List<String> baseLines = baseInput.readLines(file);
             result &= doPatch(oCollector, rCollector, summary, file, baseLines, patchFile, minFuzz, maxOffset, mode);
         }
 
@@ -374,45 +296,23 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return true;
     }
 
-    public static void bakePatches(InputPath input, MultiOutput output, String lineEnding) throws IOException {
+    public static void bakePatches(MultiInput input, MultiOutput output, String lineEnding) throws IOException {
         bakePatches(input, "", output, lineEnding);
     }
 
-    public static void bakePatches(InputPath input, String prefix, MultiOutput output, String lineEnding) throws IOException {
-        if (!input.exists()) {
-            throw new IllegalArgumentException("Expected input to exist.");
+    public static void bakePatches(MultiInput input, String prefix, MultiOutput output, String lineEnding) throws IOException {
+        try {
+            input.validate("bake input");
+        } catch (IOValidationException ex) {
+            throw new IllegalArgumentException(ex.getMessage());
         }
-        Map<String, List<String>> patchLines = new HashMap<>();
-        if (input.isFile()) {
-            if (input.getFormat() == null) { throw new IllegalArgumentException("Input is single file or unknown ArchiveFormat."); }
-            try (ArchiveReader reader = input.getFormat().createReader(input.open(), prefix)) {
-                for (String entry : reader.getEntries()) {
-                    patchLines.put(entry, reader.readLines(entry));
-                }
-            }
-        } else {
-            Map<String, Path> index = indexChildren(input.toPath(), prefix);
-            for (Map.Entry<String, Path> entry : index.entrySet()) {
-                patchLines.put(entry.getKey(), Files.readAllLines(entry.getValue()));
-            }
-        }
-        Map<String, byte[]> bakedPatches = new HashMap<>();
-        for (Map.Entry<String, List<String>> entry : patchLines.entrySet()) {
-            PatchFile patchFile = PatchFile.fromLines(entry.getKey(), entry.getValue(), true);
-            List<String> lines = patchFile.toLines(false);
-            String joined = String.join(lineEnding, lines) + lineEnding;
-            bakedPatches.put(entry.getKey(), joined.getBytes(StandardCharsets.UTF_8));
-        }
-        try (MultiOutput out = output) {
+        try (MultiInput in = input;
+             MultiOutput out = output) {
+            in.open(prefix);
             out.open(true);
-            for (Map.Entry<String, byte[]> entry : bakedPatches.entrySet()) {
-                String path;
-                if (!StringUtils.isEmpty(prefix)) {
-                    path = appendIfMissing(prefix, "/") + removeStart(entry.getKey(), "/");
-                } else {
-                    path = entry.getKey();
-                }
-                out.write(path, entry.getValue());
+            for (String file : in.index()) {
+                PatchFile patchFile = PatchFile.fromLines(file, in.readLines(file), true);
+                out.write(file, bakePatch(patchFile, lineEnding).getBytes(StandardCharsets.UTF_8));
             }
         }
     }
@@ -465,8 +365,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private Consumer<PrintStream> helpCallback = SneakyUtils.nullCons();
         private LogLevel level = LogLevel.WARN;
         private boolean summary;
-        private @Nullable InputPath basePath;
-        private @Nullable InputPath patchesPath;
+        private @Nullable Input basePath;
+        private @Nullable Input patchesPath;
         private @Nullable Output outputPath;
         private @Nullable Output rejectsPath;
         private float minFuzz = FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE;
@@ -507,40 +407,14 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return this;
         }
 
-        public Builder basePath(InputPath basePath) {
+        public Builder basePath(Input basePath) {
             this.basePath = Objects.requireNonNull(basePath);
             return this;
         }
 
-        public Builder basePath(Path basePath) {
-            return basePath(basePath, ArchiveFormat.findFormat(basePath.getFileName()));
-        }
-
-        public Builder basePath(Path basePath, @Nullable ArchiveFormat format) {
-            return basePath(new InputPath.FilePath(Objects.requireNonNull(basePath), format));
-        }
-
-        public Builder basePath(byte[] basePath, ArchiveFormat format) {
-            InputStream is = new ByteArrayInputStream(Objects.requireNonNull(basePath));
-            return basePath(new InputPath.PipePath(is, Objects.requireNonNull(format)));
-        }
-
-        public Builder patchesPath(InputPath patchesPath) {
+        public Builder patchesPath(Input patchesPath) {
             this.patchesPath = Objects.requireNonNull(patchesPath);
             return this;
-        }
-
-        public Builder patchesPath(Path patchesPath) {
-            return patchesPath(patchesPath, ArchiveFormat.findFormat(patchesPath.getFileName()));
-        }
-
-        public Builder patchesPath(Path patchesPath, @Nullable ArchiveFormat format) {
-            return patchesPath(new InputPath.FilePath(Objects.requireNonNull(patchesPath), format));
-        }
-
-        public Builder patchesPath(byte[] patchesPath, ArchiveFormat format) {
-            InputStream is = new ByteArrayInputStream(Objects.requireNonNull(patchesPath));
-            return patchesPath(new InputPath.PipePath(is, Objects.requireNonNull(format)));
         }
 
         public Builder aPrefix(String aPrefix) {

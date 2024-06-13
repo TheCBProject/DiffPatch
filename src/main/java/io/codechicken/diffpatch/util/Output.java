@@ -31,7 +31,17 @@ public abstract class Output {
      *
      * @param kind Descriptive name of the output. I.E patches, outputs, rejects, etc.
      */
-    public abstract void validate(String kind) throws OutputValidationException;
+    public abstract void validate(String kind) throws IOValidationException;
+
+    /**
+     * Used to compare if an input and an output point to the same underlying file.
+     *
+     * @param input The input.
+     * @return If the input points to the same file as the output.
+     */
+    public boolean isSamePath(Input input) {
+        return false;
+    }
 
     /**
      * Represents an output with a single file destination.
@@ -68,9 +78,9 @@ public abstract class Output {
         public static SingleOutput path(Path path, OpenOption... opts) {
             return new SingleOutput() {
                 @Override
-                public void validate(String kind) throws OutputValidationException {
+                public void validate(String kind) throws IOValidationException {
                     if (Files.exists(path) && !Files.isRegularFile(path)) {
-                        throw new OutputValidationException("Output '" + kind + "' already exists and is not a file.");
+                        throw new IOValidationException("Output '" + kind + "' already exists and is not a file.");
                     }
                 }
 
@@ -191,9 +201,9 @@ public abstract class Output {
         }
 
         @Override
-        public void validate(String kind) throws OutputValidationException {
+        public void validate(String kind) throws IOValidationException {
             if (Files.exists(path) && !Files.isRegularFile(path)) {
-                throw new OutputValidationException("Output '" + kind + "' already exists and is not a file.");
+                throw new IOValidationException("Output '" + kind + "' already exists and is not a file.");
             }
         }
 
@@ -232,9 +242,9 @@ public abstract class Output {
         }
 
         @Override
-        public void validate(String kind) throws OutputValidationException {
+        public void validate(String kind) throws IOValidationException {
             if (Files.exists(folder) && !Files.isDirectory(folder)) {
-                throw new OutputValidationException("Output '" + kind + "' already exists and is not a file.");
+                throw new IOValidationException("Output '" + kind + "' already exists and is not a file.");
             }
         }
 
@@ -254,12 +264,12 @@ public abstract class Output {
 
         @Override
         public void close() { }
-    }
 
-    public static class OutputValidationException extends Exception {
+        @Override
+        public boolean isSamePath(Input input) {
+            if (!(input instanceof Input.FolderMultiInput)) return false;
 
-        public OutputValidationException(String message) {
-            super(message);
+            return folder.equals(((Input.FolderMultiInput) input).folder);
         }
     }
 }

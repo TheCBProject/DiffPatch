@@ -2,6 +2,8 @@ package io.codechicken.diffpatch.test;
 
 import io.codechicken.diffpatch.cli.CliOperation;
 import io.codechicken.diffpatch.cli.DiffOperation;
+import io.codechicken.diffpatch.util.Input;
+import io.codechicken.diffpatch.util.Input.MultiInput;
 import io.codechicken.diffpatch.util.LogLevel;
 import io.codechicken.diffpatch.util.Output.MultiOutput;
 import io.codechicken.diffpatch.util.archiver.ArchiveFormat;
@@ -10,6 +12,7 @@ import io.codechicken.diffpatch.util.archiver.ArchiveWriter;
 import net.covers1624.quack.io.IOUtils;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,8 +42,8 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(orig)
-                .bPath(src)
+                .aPath(MultiInput.folder(orig))
+                .bPath(MultiInput.folder(src))
                 .outputPath(MultiOutput.folder(patches))
                 .build()
                 .operate();
@@ -60,8 +63,8 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(orig)
-                .bPath(src)
+                .aPath(MultiInput.folder(orig))
+                .bPath(MultiInput.folder(src))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
@@ -85,8 +88,8 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(orig)
-                .bPath(src)
+                .aPath(MultiInput.folder(orig))
+                .bPath(MultiInput.folder(src))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, os))
                 .build()
                 .operate();
@@ -112,8 +115,8 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(orig)
-                .bPath(src)
+                .aPath(MultiInput.archive(ArchiveFormat.ZIP, orig))
+                .bPath(MultiInput.folder(src))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
@@ -138,8 +141,8 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(Files.readAllBytes(orig), ArchiveFormat.ZIP)
-                .bPath(src)
+                .aPath(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(orig))))
+                .bPath(MultiInput.folder(src))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
@@ -164,8 +167,8 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(orig)
-                .bPath(src)
+                .aPath(MultiInput.folder(orig))
+                .bPath(MultiInput.archive(ArchiveFormat.ZIP, src))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();
@@ -190,8 +193,8 @@ public class DiffOperationTests {
         CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .aPath(orig)
-                .bPath(Files.readAllBytes(src), ArchiveFormat.ZIP)
+                .aPath(MultiInput.folder(orig))
+                .bPath(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(src))))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, patches))
                 .build()
                 .operate();

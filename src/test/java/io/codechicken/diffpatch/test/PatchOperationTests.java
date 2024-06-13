@@ -2,6 +2,8 @@ package io.codechicken.diffpatch.test;
 
 import io.codechicken.diffpatch.cli.CliOperation;
 import io.codechicken.diffpatch.cli.PatchOperation;
+import io.codechicken.diffpatch.util.Input;
+import io.codechicken.diffpatch.util.Input.MultiInput;
 import io.codechicken.diffpatch.util.LogLevel;
 import io.codechicken.diffpatch.util.Output;
 import io.codechicken.diffpatch.util.Output.MultiOutput;
@@ -11,6 +13,7 @@ import io.codechicken.diffpatch.util.archiver.ArchiveWriter;
 import net.covers1624.quack.io.IOUtils;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -40,9 +43,9 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
-                .patchesPath(patches)
                 .ignorePrefix("A")
                 .build()
                 .operate();
@@ -68,8 +71,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(orig))
                 .ignorePrefix("A")
                 .build()
@@ -94,9 +97,9 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, src))
-                .patchesPath(patches)
                 .build()
                 .operate();
         assertEquals(0, result.exit);
@@ -119,9 +122,9 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.archive(ArchiveFormat.ZIP, os))
-                .patchesPath(patches)
                 .build()
                 .operate();
         os.close();
@@ -145,8 +148,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
                 .rejectsPath(MultiOutput.folder(rejects))
                 .build()
@@ -168,8 +171,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
                 .rejectsPath(MultiOutput.archive(ArchiveFormat.ZIP, rejects))
                 .build()
@@ -195,8 +198,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
                 .rejectsPath(MultiOutput.archive(ArchiveFormat.ZIP, rejects))
                 .build()
@@ -223,8 +226,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.archive(ArchiveFormat.ZIP, orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
                 .build()
                 .operate();
@@ -246,8 +249,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(Files.readAllBytes(orig), ArchiveFormat.ZIP)
-                .patchesPath(patches)
+                .basePath(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(orig))))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
                 .build()
                 .operate();
@@ -269,8 +272,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.archive(ArchiveFormat.ZIP, patches))
                 .outputPath(MultiOutput.folder(src))
                 .build()
                 .operate();
@@ -292,8 +295,8 @@ public class PatchOperationTests {
         CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
                 .logTo(System.out)
                 .level(LogLevel.ALL)
-                .basePath(orig)
-                .patchesPath(Files.readAllBytes(patches), ArchiveFormat.ZIP)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.archive(ArchiveFormat.ZIP, new ByteArrayInputStream(Files.readAllBytes(patches))))
                 .outputPath(MultiOutput.folder(src))
                 .build()
                 .operate();
@@ -316,8 +319,8 @@ public class PatchOperationTests {
                 .logTo(System.out)
                 .level(LogLevel.ALL)
                 .summary(true)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
                 .build()
                 .operate();
@@ -343,8 +346,8 @@ public class PatchOperationTests {
                 .logTo(System.out)
                 .level(LogLevel.ALL)
                 .summary(true)
-                .basePath(orig)
-                .patchesPath(patches)
+                .basePath(MultiInput.folder(orig))
+                .patchesPath(MultiInput.folder(patches))
                 .outputPath(MultiOutput.folder(src))
                 .build()
                 .operate();
