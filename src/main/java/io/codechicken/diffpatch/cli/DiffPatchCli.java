@@ -1,6 +1,5 @@
-package io.codechicken.diffpatch;
+package io.codechicken.diffpatch.cli;
 
-import io.codechicken.diffpatch.cli.*;
 import io.codechicken.diffpatch.diff.Differ;
 import io.codechicken.diffpatch.match.FuzzyLineMatcher;
 import io.codechicken.diffpatch.util.Input;
@@ -17,7 +16,9 @@ import joptsimple.OptionSpec;
 import joptsimple.util.EnumConverter;
 import joptsimple.util.PathConverter;
 import net.covers1624.quack.util.SneakyUtils;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -31,13 +32,21 @@ import static java.util.Arrays.asList;
 /**
  * Created by covers1624 on 16/7/20.
  */
-public class DiffPatch {
+public class DiffPatchCli {
 
     public static void main(String[] args) throws IOException {
         System.exit(mainI(args, System.err, System.out));
     }
 
     public static int mainI(String[] args, PrintStream logger, PrintStream pipe) throws IOException {
+        CliOperation<?> operation = parseOperation(logger, pipe, args);
+        if (operation == null) return -1;
+
+        return operation.operate().exit;
+    }
+
+    @VisibleForTesting
+    static @Nullable CliOperation<?> parseOperation(PrintStream logger, PrintStream pipe, String... args) throws IOException {
         OptionParser parser = new OptionParser();
         OptionSpec<String> nonOptions = parser.nonOptions();
 
@@ -106,15 +115,15 @@ public class DiffPatch {
                 .withRequiredArg()
                 .ofType(String.class)
                 .defaultsTo("");
-        OptionSpec<ArchiveFormat> patchesArchiveOpt = parser.acceptsAll(asList("M", "archive-patches"), "Treat the patches path as an archive.")
-                .availableIf(doDiffOpt)
+        OptionSpec<ArchiveFormat> patchesArchiveOpt = parser.acceptsAll(asList("N", "archive-patches"), "Treat the patches path as an archive.")
+                .availableIf(doPatchOpt)
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
 
         OptionSet optSet = parser.parse(args);
         if (optSet.has(helpOpt)) {
             parser.printHelpOn(logger);
-            return -1;
+            return null;
         }
 
         LogLevel level = optSet.valueOf(logLevelOpt);
@@ -128,10 +137,9 @@ public class DiffPatch {
         if (arguments.size() != 2) {
             logger.println("Expected 2 arguments, got: " + arguments.size());
             parser.printHelpOn(logger);
-            return -1;
+            return null;
         }
 
-        CliOperation<?> operation;
         if (optSet.has(doDiffOpt)) {
             Path aPath = Paths.get(arguments.get(0));
             Path bPath = Paths.get(arguments.get(1));
@@ -163,7 +171,7 @@ public class DiffPatch {
             } else {
                 bInput = Files.isDirectory(bPath) ? MultiInput.folder(bPath) : Input.SingleInput.path(bPath);
             }
-            operation = DiffOperation.builder()
+            return DiffOperation.builder()
                     .logTo(logger)
                     .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
                     .baseInput(aInput)
@@ -174,7 +182,8 @@ public class DiffPatch {
                     .autoHeader(optSet.has(autoHeaderOpt))
                     .context(optSet.valueOf(contextOpt))
                     .build();
-        } else if (optSet.has(doPatchOpt)) {
+        }
+        if (optSet.has(doPatchOpt)) {
             Path base = Paths.get(arguments.get(0));
             Path patches = Paths.get(arguments.get(1));
             Path outputPath = optSet.valueOf(outputOpt);
@@ -213,7 +222,7 @@ public class DiffPatch {
                 }
             }
 
-            operation = PatchOperation.builder()
+            return PatchOperation.builder()
                     .logTo(logger)
                     .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
                     .level(level)
@@ -227,12 +236,11 @@ public class DiffPatch {
                     .mode(optSet.valueOf(modeOpt))
                     .patchesPrefix(optSet.valueOf(patchPrefix))
                     .build();
-        } else {
-            logger.println("Expected --diff or --patch.");
-            parser.printHelpOn(logger);
-            return -1;
         }
-        return operation.operate().exit;
+
+        logger.println("Expected --diff or --patch.");
+        parser.printHelpOn(logger);
+        return null;
     }
 
     private static @Nullable ArchiveFormat detectFormat(@Nullable ArchiveFormat existing, @Nullable Path detectFrom) {

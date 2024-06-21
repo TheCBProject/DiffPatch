@@ -30,19 +30,19 @@ import static org.apache.commons.lang3.StringUtils.removeStart;
  */
 public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> {
 
-    private final boolean summary;
-    private final Input baseInput;
-    private final Input patchesInput;
-    private final String aPrefix;
-    private final String bPrefix;
-    private final Output patchedOutput;
-    private final @Nullable Output rejectsOutput;
-    private final float minFuzz;
-    private final int maxOffset;
-    private final PatchMode mode;
-    private final String patchesPrefix;
-    private final String lineEnding;
-    private final String[] ignorePrefixes;
+    final boolean summary;
+    final Input baseInput;
+    final Input patchesInput;
+    final String aPrefix;
+    final String bPrefix;
+    final Output patchedOutput;
+    final @Nullable Output rejectsOutput;
+    final float minFuzz;
+    final int maxOffset;
+    final PatchMode mode;
+    final String patchesPrefix;
+    final String lineEnding;
+    final String[] ignorePrefixes;
 
     private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input patchesInput, String aPrefix, String bPrefix, Output patchedOutput, @Nullable Output rejectsOutput, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
