@@ -31,16 +31,16 @@ import static io.codechicken.diffpatch.util.Utils.filterPrefixed;
  */
 public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
 
-    private final boolean summary;
-    private final Input baseInput;
-    private final Input changedInput;
-    private final String aPrefix;
-    private final String bPrefix;
-    private final boolean autoHeader;
-    private final int context;
-    private final Output patchOutput;
-    private final String lineEnding;
-    private final String[] ignorePrefixes;
+    final boolean summary;
+    final Input baseInput;
+    final Input changedInput;
+    final String aPrefix;
+    final String bPrefix;
+    final boolean autoHeader;
+    final int context;
+    final Output patchOutput;
+    final String lineEnding;
+    final String[] ignorePrefixes;
 
     private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input changedInput, String aPrefix, String bPrefix, boolean autoHeader, int context, Output patchOutput, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);

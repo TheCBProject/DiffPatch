@@ -27,6 +27,10 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    testCompileOnly.extendsFrom compileOnly
+}
+
 dependencies {
     api 'net.covers1624:Quack:0.4.10.101'
     api 'it.unimi.dsi:fastutil:8.3.1'
@@ -48,7 +52,7 @@ test {
 }
 
 def commonManifest = {
-    attributes 'Main-Class': 'codechicken.diffpatch.DiffPatch'
+    attributes 'Main-Class': 'io.codechicken.diffpatch.cli.DiffPatchCli'
 }
 
 jar {

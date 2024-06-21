@@ -12,8 +12,8 @@ import java.util.function.Consumer;
  */
 public abstract class CliOperation<T> {
 
-    protected final PrintStream logger;
-    protected final LogLevel level;
+    final PrintStream logger;
+    final LogLevel level;
 
     private final Consumer<PrintStream> helpCallback;
 
