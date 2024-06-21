@@ -55,17 +55,7 @@ public abstract class Output {
          * @return The output.
          */
         public static SingleOutput pipe(OutputStream out) {
-            return new SingleOutput() {
-                @Override
-                public void validate(String kind) {
-                    // Always valid.
-                }
-
-                @Override
-                public OutputStream open() {
-                    return IOUtils.protectClose(out);
-                }
-            };
+            return new ToStream(out);
         }
 
         /**
@@ -76,19 +66,7 @@ public abstract class Output {
          * @return The output.
          */
         public static SingleOutput path(Path path, OpenOption... opts) {
-            return new SingleOutput() {
-                @Override
-                public void validate(String kind) throws IOValidationException {
-                    if (Files.exists(path) && !Files.isRegularFile(path)) {
-                        throw new IOValidationException("Output '" + kind + "' already exists and is not a file.");
-                    }
-                }
-
-                @Override
-                public OutputStream open() throws IOException {
-                    return Files.newOutputStream(IOUtils.makeParents(path), opts);
-                }
-            };
+            return new ToPath(path, opts);
         }
 
         /**
@@ -97,6 +75,46 @@ public abstract class Output {
          * @return The stream.
          */
         public abstract OutputStream open() throws IOException;
+
+        public static class ToStream extends SingleOutput {
+
+            private final OutputStream out;
+
+            public ToStream(OutputStream out) { this.out = out; }
+
+            @Override
+            public void validate(String kind) {
+                // Always valid.
+            }
+
+            @Override
+            public OutputStream open() {
+                return IOUtils.protectClose(out);
+            }
+        }
+
+        public static class ToPath extends SingleOutput {
+
+            private final Path path;
+            private final OpenOption[] opts;
+
+            public ToPath(Path path, OpenOption... opts) {
+                this.path = path;
+                this.opts = opts;
+            }
+
+            @Override
+            public void validate(String kind) throws IOValidationException {
+                if (Files.exists(path) && !Files.isRegularFile(path)) {
+                    throw new IOValidationException("Output '" + kind + "' already exists and is not a file.");
+                }
+            }
+
+            @Override
+            public OutputStream open() throws IOException {
+                return Files.newOutputStream(IOUtils.makeParents(path), opts);
+            }
+        }
     }
 
     /**

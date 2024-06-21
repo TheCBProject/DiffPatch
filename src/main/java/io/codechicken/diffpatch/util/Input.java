@@ -64,22 +64,7 @@ public abstract class Input {
          * @return The input.
          */
         public static SingleInput pipe(InputStream is, String name) {
-            return new SingleInput() {
-                @Override
-                public void validate(String kind) {
-                    // Always valid.
-                }
-
-                @Override
-                public InputStream open() throws IOException {
-                    return IOUtils.protectClose(is);
-                }
-
-                @Override
-                public String name() {
-                    return name;
-                }
-            };
+            return new FromStream(is, name);
         }
 
         /**
@@ -90,23 +75,7 @@ public abstract class Input {
          * @return The input.
          */
         public static SingleInput path(Path path, OpenOption... opts) {
-            return new SingleInput() {
-                @Override
-                public void validate(String kind) throws IOValidationException {
-                    if (Files.notExists(path)) throw new IOValidationException("Input '" + kind + "' does not exist.");
-                    if (!Files.isRegularFile(path)) throw new IOValidationException("Input '" + kind + "' is not a file.");
-                }
-
-                @Override
-                public InputStream open() throws IOException {
-                    return Files.newInputStream(path, opts);
-                }
-
-                @Override
-                public String name() {
-                    return path.toString();
-                }
-            };
+            return new FromPath(path, opts);
         }
 
         public abstract InputStream open() throws IOException;
@@ -118,6 +87,59 @@ public abstract class Input {
         }
 
         public abstract String name();
+
+        public static final class FromStream extends SingleInput {
+
+            private final InputStream is;
+            private final String name;
+
+            public FromStream(InputStream is, String name) {
+                this.is = is;
+                this.name = name;
+            }
+
+            @Override
+            public void validate(String kind) {
+                // Always valid.
+            }
+
+            @Override
+            public InputStream open() throws IOException {
+                return IOUtils.protectClose(is);
+            }
+
+            @Override
+            public String name() {
+                return name;
+            }
+        }
+
+        public static class FromPath extends SingleInput {
+
+            private final Path path;
+            private final OpenOption[] opts;
+
+            public FromPath(Path path, OpenOption... opts) {
+                this.path = path;
+                this.opts = opts;
+            }
+
+            @Override
+            public void validate(String kind) throws IOValidationException {
+                if (Files.notExists(path)) throw new IOValidationException("Input '" + kind + "' does not exist.");
+                if (!Files.isRegularFile(path)) throw new IOValidationException("Input '" + kind + "' is not a file.");
+            }
+
+            @Override
+            public InputStream open() throws IOException {
+                return Files.newInputStream(path, opts);
+            }
+
+            @Override
+            public String name() {
+                return path.toString();
+            }
+        }
     }
 
     /**
