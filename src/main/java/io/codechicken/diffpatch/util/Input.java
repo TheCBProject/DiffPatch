@@ -163,6 +163,17 @@ public abstract class Input {
          * Create a {@link MultiInput} which reads from an existing stream.
          *
          * @param format The format of the archive.
+         * @param bytes  The bytes.
+         * @return The input.
+         */
+        public static MultiInput archive(ArchiveFormat format, byte[] bytes) {
+            return archive(format, new ByteArrayInputStream(bytes));
+        }
+
+        /**
+         * Create a {@link MultiInput} which reads from an existing stream.
+         *
+         * @param format The format of the archive.
          * @param stream The path.
          * @return The input.
          */

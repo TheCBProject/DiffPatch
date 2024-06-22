@@ -1,5 +1,10 @@
 package io.codechicken.diffpatch.test;
 
+import io.codechicken.diffpatch.util.ConsumingOutputStream;
+import net.covers1624.quack.io.IOUtils;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -43,5 +48,35 @@ public abstract class TestBase {
             builder.append(HEX[randy.nextInt(HEX.length)]);
         }
         return builder.toString();
+    }
+
+    public static PrintStream collectLines(List<String> lines) {
+        return new PrintStream(new ConsumingOutputStream(lines::add), true);
+    }
+
+    public static String testResourceString(String resource) throws IOException {
+        try (InputStream is = TestBase.class.getResourceAsStream(resource)) {
+            if (is == null) throw new FileNotFoundException("Did not find test resource: " + resource);
+
+            return new String(IOUtils.toBytes(is), StandardCharsets.UTF_8);
+        }
+    }
+
+    public static InputStream testResourceStream(String resource) throws IOException {
+        return new ByteArrayInputStream(testResource(resource));
+    }
+
+    public static byte[] testResource(String resource) throws IOException {
+        // We read this to bytes and return a ByteArrayInputStream, so we never need to close this resource.
+        // It makes tests more concise, whilst still being resource safe.
+        try (InputStream is = TestBase.class.getResourceAsStream(resource)) {
+            if (is == null) throw new FileNotFoundException("Did not find test resource: " + resource);
+
+            return IOUtils.toBytes(is);
+        }
+    }
+
+    public static InputStream stream(byte[] bytes) {
+        return new ByteArrayInputStream(bytes);
     }
 }

@@ -385,6 +385,6 @@ public class DiffPatchCliTests extends TestBase {
     // endregion
 
     private static @Nullable <T extends CliOperation<?>> T parse(List<String> help, String... args) throws IOException {
-        return unsafeCast(parseOperation(new PrintStream(new ConsumingOutputStream(help::add), true), new PrintStream(NullOutputStream.INSTANCE, true), args));
+        return unsafeCast(parseOperation(collectLines(help), new PrintStream(NullOutputStream.INSTANCE, true), args));
     }
 }
