@@ -90,7 +90,8 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             if (!lines.isEmpty()) {
                 changes = true;
                 try (PrintWriter out = new PrintWriter(output.open())) {
-                    out.println(String.join(lineEnding, lines) + lineEnding);
+                    out.print(String.join(lineEnding, lines));
+                    out.print(lineEnding);
                 }
             }
             if (this.summary) {

@@ -108,13 +108,13 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             CollectedEntry outputEntry = outputCollector.getSingleFile();
             CollectedEntry rejectEntry = rejectCollector.getSingleFile();
             try (OutputStream os = output.open()) {
-                os.write(outputEntry.toBytes(lineEnding, true));
+                os.write(outputEntry.toBytes(lineEnding, false));
                 os.flush();
             }
 
             if (rejectEntry != null && rejects != null) {
                 try (OutputStream os = rejects.open()) {
-                    os.write(rejectEntry.toBytes(lineEnding, true));
+                    os.write(rejectEntry.toBytes(lineEnding, false));
                 }
             }
             if (this.summary) {
