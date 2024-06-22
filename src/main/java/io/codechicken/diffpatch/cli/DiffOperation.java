@@ -287,6 +287,10 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         private Builder() {
         }
 
+        public Builder logTo(Consumer<String> func) {
+            return logTo(new ConsumingOutputStream(func));
+        }
+
         public Builder logTo(PrintStream logger) {
             this.logger = Objects.requireNonNull(logger);
             return this;
