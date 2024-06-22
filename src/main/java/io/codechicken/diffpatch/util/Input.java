@@ -160,7 +160,25 @@ public abstract class Input {
         }
 
         /**
-         * Create a {@link MultiInput} which reads from an existing stream.
+         * Create a {@link MultiInput} which reads from an archive file.
+         * <p>
+         * Will attempt to automatically detect the archive format based on file name.
+         * <p>
+         * If the format can not be detected it will throw a {@link IllegalArgumentException}
+         *
+         * @param path The path.
+         * @return The input.
+         * @throws IllegalArgumentException If the format cannot be detected.
+         */
+        public static MultiInput detectedArchive(Path path) throws IllegalArgumentException {
+            ArchiveFormat format = ArchiveFormat.findFormat(path);
+            if (format == null) throw new IllegalArgumentException("Unable to detect archive format for " + path.getFileName());
+
+            return archive(format, path);
+        }
+
+        /**
+         * Create a {@link MultiInput} which reads from an array of bytes.
          *
          * @param format The format of the archive.
          * @param bytes  The bytes.

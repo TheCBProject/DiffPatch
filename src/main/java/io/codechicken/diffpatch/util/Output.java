@@ -135,6 +135,24 @@ public abstract class Output {
         }
 
         /**
+         * Create a {@link MultiOutput} which writes an archive to a file.
+         * <p>
+         * Will attempt to automatically detect the archive format based on file name.
+         * <p>
+         * If the format can not be detected it will throw a {@link IllegalArgumentException}
+         *
+         * @param path The path.
+         * @return The output.
+         * @throws IllegalArgumentException If the format cannot be detected.
+         */
+        public static MultiOutput detectedArchive(Path path) throws IllegalArgumentException {
+            ArchiveFormat format = ArchiveFormat.findFormat(path);
+            if (format == null) throw new IllegalArgumentException("Unable to detect archive format for " + path.getFileName());
+
+            return archive(format, path);
+        }
+
+        /**
          * Create a {@link MultiOutput} which writes an archive to the given stream.
          *
          * @param format The format of the archive.
