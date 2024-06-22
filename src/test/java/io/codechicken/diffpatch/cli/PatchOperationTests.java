@@ -184,4 +184,36 @@ public class PatchOperationTests extends TestBase {
             assertTrue(ar.getEntries().isEmpty());
         }
     }
+
+    @Test
+    public void testDeleteMultiplePatch() throws IOException {
+        byte[] base = new ArchiveBuilder()
+                .put("A.txt", testResource("/files/A.txt"))
+                .put("B.txt", testResource("/files/B.txt"))
+                .toBytes(ZIP);
+        byte[] patches = new ArchiveBuilder()
+                .put("A.txt.patch", testResource("/patches/DeleteA.txt.patch"))
+                .put("B.txt.patch", testResource("/patches/DeleteB.txt.patch"))
+                .toBytes(ZIP);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ByteArrayOutputStream rejects = new ByteArrayOutputStream();
+        CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .baseInput(MultiInput.archive(ZIP, base))
+                .patchesInput(MultiInput.archive(ZIP, patches))
+                .rejectsOutput(MultiOutput.archive(ZIP, rejects))
+                .patchedOutput(MultiOutput.archive(ZIP, output))
+                .build()
+                .operate();
+
+        assertEquals(0, result.exit);
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(output.toByteArray()))) {
+            assertTrue(ar.getEntries().isEmpty());
+        }
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(rejects.toByteArray()))) {
+            assertTrue(ar.getEntries().isEmpty());
+        }
+    }
 }
