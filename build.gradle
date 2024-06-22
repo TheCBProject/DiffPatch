@@ -3,7 +3,7 @@ plugins {
     id 'signing'
     id 'maven-publish'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id "net.covers1624.centralpublisher" version "1.0.6"
+    id "net.covers1624.centralpublisher" version "1.0.7"
 }
 
 java {
