@@ -319,7 +319,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
 
     public static String bakePatch(PatchFile patchFile, String lineEnding) {
         List<String> lines = patchFile.toLines(false);
-        return String.join(lineEnding + lines) + lineEnding;
+        return String.join(lineEnding, lines) + lineEnding;
     }
 
     public static class PatchesSummary {
