@@ -16,7 +16,6 @@ import joptsimple.OptionSpec;
 import joptsimple.util.EnumConverter;
 import joptsimple.util.PathConverter;
 import net.covers1624.quack.util.SneakyUtils;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
@@ -119,7 +118,16 @@ public class DiffPatchCli {
                 .availableIf(doPatchOpt)
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
-
+        OptionSpec<String> stripBasePrefixOpt = parser.acceptsAll(asList("strip-base-prefix"), "The prefix to strip from paths of base files in the patch files.")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
+                .ofType(String.class)
+                .defaultsTo("a/");
+        OptionSpec<String> stripModifiedPrefixOpt = parser.acceptsAll(asList("strip-modified-prefix"), "The prefix to strip from paths of modified files in the patch files.")
+                .availableIf(doPatchOpt)
+                .withRequiredArg()
+                .ofType(String.class)
+                .defaultsTo("b/");
         OptionSet optSet = parser.parse(args);
         if (optSet.has(helpOpt)) {
             parser.printHelpOn(logger);
@@ -192,6 +200,8 @@ public class DiffPatchCli {
             ArchiveFormat patchesFormat = detectFormat(optSet.valueOf(patchesArchiveOpt), patches);
             ArchiveFormat outputFormat = detectFormat(optSet.valueOf(archiveOpt), outputPath);
             ArchiveFormat rejectsFormat = detectFormat(optSet.valueOf(rejectArchiveOpt), rejectsPath);
+            String stripBasePrefix = optSet.valueOf(stripBasePrefixOpt);
+            String stripModifiedPrefix = optSet.valueOf(stripModifiedPrefixOpt);
 
             Input baseInput;
             if (baseFormat != null) {
@@ -235,6 +245,8 @@ public class DiffPatchCli {
                     .maxOffset(optSet.valueOf(offsetOpt))
                     .mode(optSet.valueOf(modeOpt))
                     .patchesPrefix(optSet.valueOf(patchPrefix))
+                    .aPrefix(stripBasePrefix)
+                    .bPrefix(stripModifiedPrefix)
                     .build();
         }
 
