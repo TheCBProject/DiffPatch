@@ -126,6 +126,7 @@ public class DiffPatchCli {
                 .availableIf(doPatchOpt)
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
+
         OptionSet optSet = parser.parse(args);
         if (optSet.has(helpOpt)) {
             parser.printHelpOn(logger);
