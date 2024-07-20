@@ -69,6 +69,14 @@ public class DiffPatchCli {
         OptionSpec<ArchiveFormat> baseArchiveOpt = parser.acceptsAll(asList("B", "archive-base"), "Treat the base path as an archive.")
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
+        OptionSpec<String> basePathPrefixOpt = parser.acceptsAll(asList("base-path-prefix"), "The prefix to assume for paths of base files.")
+                .withRequiredArg()
+                .ofType(String.class)
+                .defaultsTo("a/");
+        OptionSpec<String> modifiedPathPrefixOpt = parser.acceptsAll(asList("modified-path-prefix"), "The prefix to assume for paths of modified files.")
+                .withRequiredArg()
+                .ofType(String.class)
+                .defaultsTo("b/");
 
         //Diff specific
         OptionSpec<Void> doDiffOpt = parser.acceptsAll(asList("d", "diff"), "Does a Diff operation.");
@@ -118,16 +126,6 @@ public class DiffPatchCli {
                 .availableIf(doPatchOpt)
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
-        OptionSpec<String> stripBasePrefixOpt = parser.acceptsAll(asList("strip-base-prefix"), "The prefix to strip from paths of base files in the patch files.")
-                .availableIf(doPatchOpt)
-                .withRequiredArg()
-                .ofType(String.class)
-                .defaultsTo("a/");
-        OptionSpec<String> stripModifiedPrefixOpt = parser.acceptsAll(asList("strip-modified-prefix"), "The prefix to strip from paths of modified files in the patch files.")
-                .availableIf(doPatchOpt)
-                .withRequiredArg()
-                .ofType(String.class)
-                .defaultsTo("b/");
         OptionSet optSet = parser.parse(args);
         if (optSet.has(helpOpt)) {
             parser.printHelpOn(logger);
@@ -156,6 +154,9 @@ public class DiffPatchCli {
             ArchiveFormat aFormat = detectFormat(optSet.valueOf(baseArchiveOpt), aPath);
             ArchiveFormat bFormat = detectFormat(optSet.valueOf(modifiedArchiveOpt), bPath);
             ArchiveFormat outputFormat = detectFormat(optSet.valueOf(archiveOpt), outputPath);
+
+            String basePathPrefix = optSet.valueOf(basePathPrefixOpt);
+            String modifiedPathPrefix = optSet.valueOf(modifiedPathPrefixOpt);
 
             Output output;
             if (outputFormat != null) {
@@ -189,6 +190,8 @@ public class DiffPatchCli {
                     .summary(summary)
                     .autoHeader(optSet.has(autoHeaderOpt))
                     .context(optSet.valueOf(contextOpt))
+                    .aPrefix(basePathPrefix)
+                    .bPrefix(modifiedPathPrefix)
                     .build();
         }
         if (optSet.has(doPatchOpt)) {
@@ -200,8 +203,8 @@ public class DiffPatchCli {
             ArchiveFormat patchesFormat = detectFormat(optSet.valueOf(patchesArchiveOpt), patches);
             ArchiveFormat outputFormat = detectFormat(optSet.valueOf(archiveOpt), outputPath);
             ArchiveFormat rejectsFormat = detectFormat(optSet.valueOf(rejectArchiveOpt), rejectsPath);
-            String stripBasePrefix = optSet.valueOf(stripBasePrefixOpt);
-            String stripModifiedPrefix = optSet.valueOf(stripModifiedPrefixOpt);
+            String basePathPrefix = optSet.valueOf(basePathPrefixOpt);
+            String modifiedPathPrefix = optSet.valueOf(modifiedPathPrefixOpt);
 
             Input baseInput;
             if (baseFormat != null) {
@@ -245,8 +248,8 @@ public class DiffPatchCli {
                     .maxOffset(optSet.valueOf(offsetOpt))
                     .mode(optSet.valueOf(modeOpt))
                     .patchesPrefix(optSet.valueOf(patchPrefix))
-                    .aPrefix(stripBasePrefix)
-                    .bPrefix(stripModifiedPrefix)
+                    .aPrefix(basePathPrefix)
+                    .bPrefix(modifiedPathPrefix)
                     .build();
         }
 
