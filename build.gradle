@@ -36,7 +36,7 @@ dependencies {
     api 'it.unimi.dsi:fastutil:8.3.1'
     api 'org.apache.commons:commons-lang3:3.9'
     api 'org.apache.commons:commons-compress:1.27.1'
-    api 'org.tukaani:xz:1.8'
+    api 'org.tukaani:xz:1.10'
     api 'net.sf.jopt-simple:jopt-simple:5.0.4'
 
     compileOnly 'org.jetbrains:annotations:23.1.0'
