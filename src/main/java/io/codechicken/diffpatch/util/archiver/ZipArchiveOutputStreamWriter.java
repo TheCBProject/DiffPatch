@@ -8,7 +8,7 @@ import java.io.IOException;
 /**
  * Created by covers1624 on 19/7/20.
  */
-public class ZipArchiveOutputStreamWriter extends AbstractArchiveOutputStreamWriter {
+public class ZipArchiveOutputStreamWriter extends AbstractArchiveOutputStreamWriter<ZipArchiveOutputStream> {
 
     public ZipArchiveOutputStreamWriter(ZipArchiveOutputStream os) {
         super(os);

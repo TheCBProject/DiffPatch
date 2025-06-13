@@ -8,7 +8,7 @@ import java.io.IOException;
 /**
  * Created by covers1624 on 19/7/20.
  */
-public class TarArchiveOutputStreamWriter extends AbstractArchiveOutputStreamWriter {
+public class TarArchiveOutputStreamWriter extends AbstractArchiveOutputStreamWriter<TarArchiveOutputStream> {
 
     public TarArchiveOutputStreamWriter(TarArchiveOutputStream os) {
         super(os);

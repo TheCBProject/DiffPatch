@@ -7,11 +7,11 @@ import java.io.IOException;
 /**
  * Created by covers1624 on 19/7/20.
  */
-public abstract class AbstractArchiveOutputStreamWriter implements ArchiveWriter {
+public abstract class AbstractArchiveOutputStreamWriter<T extends ArchiveOutputStream<?>> implements ArchiveWriter {
 
-    protected final ArchiveOutputStream os;
+    protected final T os;
 
-    public AbstractArchiveOutputStreamWriter(ArchiveOutputStream os) {
+    public AbstractArchiveOutputStreamWriter(T os) {
         this.os = os;
     }
 

@@ -20,9 +20,9 @@ import java.util.Set;
 public class ArchiveInputStreamReader implements ArchiveReader {
 
     private final Map<String, byte[]> archiveIndex = new LinkedHashMap<>();
-    private final ArchiveInputStream is;
+    private final ArchiveInputStream<?> is;
 
-    public ArchiveInputStreamReader(ArchiveInputStream is, String prefix) {
+    public ArchiveInputStreamReader(ArchiveInputStream<?> is, String prefix) {
         this.is = is;
         try {
             ArchiveEntry entry;
