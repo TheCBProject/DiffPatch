@@ -13,10 +13,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 import static io.codechicken.diffpatch.test.TestBase.generateRandomFiles;
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,6 +22,14 @@ import static org.junit.jupiter.api.Assertions.*;
  * Created by covers1624 on 31/5/24.
  */
 public class InputTests {
+
+    @Test
+    public void testSingleInputString() throws IOException {
+        SingleInput input = SingleInput.string("asdf\n1234\nfdsa");
+        assertDoesNotThrow(() -> input.validate("asdf"));
+        assertDoesNotThrow(() -> input.open().close());
+        assertEquals(input.readLines(), Arrays.asList("asdf", "1234", "fdsa"));
+    }
 
     @Test
     public void testSingleInputPipe() {

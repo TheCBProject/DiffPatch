@@ -44,6 +44,30 @@ public abstract class Input {
     public static abstract class SingleInput extends Input {
 
         /**
+         * Single file input for an existing {@link String}.
+         * <p>
+         * This stream will have the name of 'pipe', diffing against this
+         * will produce this name in the +/- header lines.
+         *
+         * @param str The string.
+         * @return The input.
+         */
+        public static SingleInput string(String str) {
+            return new FromString(str, "pipe");
+        }
+
+        /**
+         * Single file input for an existing {@link InputStream}, such as stdin.
+         *
+         * @param str  The string.
+         * @param name The name of the stream. Used in +/- header lines of diffs.
+         * @return The input.
+         */
+        public static SingleInput string(String str, String name) {
+            return new FromString(str, name);
+        }
+
+        /**
          * Single file input for an existing {@link InputStream}, such as stdin.
          * <p>
          * This stream will have the name of 'pipe', diffing against this
@@ -87,6 +111,39 @@ public abstract class Input {
         }
 
         public abstract String name();
+
+        public static final class FromString extends SingleInput {
+
+            private final String str;
+            private final String name;
+
+            public FromString(String str, String name) {
+                this.str = str;
+                this.name = name;
+            }
+
+            @Override
+            public void validate(String kind) {
+                // Always valid.
+            }
+
+            @Override
+            public InputStream open() throws IOException {
+                return new ByteArrayInputStream(str.getBytes(StandardCharsets.UTF_8));
+            }
+
+            @Override
+            public List<String> readLines() throws IOException {
+                try (BufferedReader reader = new BufferedReader(new StringReader(str))) {
+                    return FastStream.of(reader.lines()).toList();
+                }
+            }
+
+            @Override
+            public String name() {
+                return name;
+            }
+        }
 
         public static final class FromStream extends SingleInput {
 
