@@ -33,7 +33,7 @@ configurations {
 
 dependencies {
     api 'net.covers1624:Quack:0.4.10.101'
-    api 'it.unimi.dsi:fastutil:8.3.1'
+    api 'it.unimi.dsi:fastutil:8.5.15'
     api 'org.apache.commons:commons-compress:1.27.1'
     api 'org.tukaani:xz:1.10'
     api 'net.sf.jopt-simple:jopt-simple:5.0.4'
