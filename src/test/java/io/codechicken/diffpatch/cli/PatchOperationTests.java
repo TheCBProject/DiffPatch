@@ -216,4 +216,40 @@ public class PatchOperationTests extends TestBase {
             assertTrue(ar.getEntries().isEmpty());
         }
     }
+
+    @Test
+    public void patchNoFiles() throws IOException {
+        byte[] base = new ArchiveBuilder()
+                .put("A.txt", testResource("/files/A.txt"))
+                .put("B.txt", testResource("/files/B.txt"))
+                .put("ANoNewline.txt", testResource("/files/ANoNewline.txt"))
+                .toBytes(ZIP);
+
+        byte[] patches = new ArchiveBuilder()
+                .toBytes(ZIP);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ByteArrayOutputStream rejects = new ByteArrayOutputStream();
+        CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .baseInput(MultiInput.archive(ZIP, base))
+                .patchesInput(MultiInput.archive(ZIP, patches))
+                .rejectsOutput(MultiOutput.archive(ZIP, rejects))
+                .patchedOutput(MultiOutput.archive(ZIP, output))
+                .build()
+                .operate();
+
+        assertEquals(0, result.exit);
+
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(output.toByteArray()))) {
+            assertEquals(testResourceString("/files/A.txt"), new String(ar.getBytes("A.txt"), StandardCharsets.UTF_8));
+            assertEquals(testResourceString("/files/B.txt"), new String(ar.getBytes("B.txt"), StandardCharsets.UTF_8));
+            // File without trailing newline should not be modified.
+            assertEquals(testResourceString("/files/ANoNewline.txt"), new String(ar.getBytes("ANoNewline.txt"), StandardCharsets.UTF_8));
+        }
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(rejects.toByteArray()))) {
+            assertTrue(ar.getEntries().isEmpty());
+        }
+    }
 }
