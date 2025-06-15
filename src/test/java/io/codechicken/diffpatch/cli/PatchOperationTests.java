@@ -252,4 +252,36 @@ public class PatchOperationTests extends TestBase {
             assertTrue(ar.getEntries().isEmpty());
         }
     }
+
+    @Test
+    public void patchRemoveTrailingNewline() throws IOException {
+        byte[] base = new ArchiveBuilder()
+                .put("A.txt", testResource("/files/A.txt"))
+                .toBytes(ZIP);
+
+        byte[] patches = new ArchiveBuilder()
+                .put("A.txt.patch", testResource("/patches/AToANoNewline.txt.patch"))
+                .toBytes(ZIP);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ByteArrayOutputStream rejects = new ByteArrayOutputStream();
+        CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .baseInput(MultiInput.archive(ZIP, base))
+                .patchesInput(MultiInput.archive(ZIP, patches))
+                .rejectsOutput(MultiOutput.archive(ZIP, rejects))
+                .patchedOutput(MultiOutput.archive(ZIP, output))
+                .build()
+                .operate();
+
+        assertEquals(0, result.exit);
+
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(output.toByteArray()))) {
+            assertEquals(testResourceString("/files/ANoNewline.txt"), new String(ar.getBytes("A.txt"), StandardCharsets.UTF_8));
+        }
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(rejects.toByteArray()))) {
+            assertTrue(ar.getEntries().isEmpty());
+        }
+    }
 }

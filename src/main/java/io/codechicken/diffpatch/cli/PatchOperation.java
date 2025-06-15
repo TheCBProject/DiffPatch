@@ -280,8 +280,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         }
         List<String> lines = patcher.lines;
         if (!lines.isEmpty()) {
-            if (lines.get(lines.size() - 1).isEmpty()) {
-                if (!patchFile.noNewLine) {//if we end in a new line and shouldn't have one
+            if (patchFile.noNewLine) {
+                if (lines.get(lines.size() - 1).isEmpty()) {
                     lines.remove(lines.size() - 1);
                 }
             } else {

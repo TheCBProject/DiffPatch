@@ -6,6 +6,7 @@ import io.codechicken.diffpatch.util.Input;
 import io.codechicken.diffpatch.util.LogLevel;
 import io.codechicken.diffpatch.util.Output;
 import io.codechicken.diffpatch.util.archiver.ArchiveReader;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 
 import static io.codechicken.diffpatch.util.archiver.ArchiveFormat.ZIP;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Created by covers1624 on 22/6/24.
@@ -118,6 +120,37 @@ public class DiffOperationTests extends TestBase {
         assertEquals(1, result.exit);
         try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(output.toByteArray()))) {
             assertEquals(testResourceString("/patches/DeleteA.txt.patch"), new String(ar.getBytes("A.txt.patch"), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    public void testRemoveTrailingNewlineBroken() {
+        assertThrows(AssertionError.class, this::testRemoveTrailingNewline);
+    }
+
+    @Test
+    @Disabled ("Currently we are unable to detect these and emit these patches.")
+    public void testRemoveTrailingNewline() throws IOException {
+        byte[] a = new ArchiveBuilder()
+                .put("A.txt", testResource("/files/A.txt"))
+                .toBytes(ZIP);
+        byte[] b = new ArchiveBuilder()
+                .put("A.txt", testResource("/files/ANoNewline.txt"))
+                .toBytes(ZIP);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .baseInput(Input.MultiInput.archive(ZIP, a))
+                .changedInput(Input.MultiInput.archive(ZIP, b))
+                .patchesOutput(Output.MultiOutput.archive(ZIP, output))
+                .build()
+                .operate();
+        assertEquals(1, result.exit);
+
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(output.toByteArray()))) {
+            assertEquals(testResourceString("/patches/AToANoNewline.txt.patch"), new String(ar.getBytes("A.txt.patch"), StandardCharsets.UTF_8));
         }
     }
 }

@@ -1,0 +1,9 @@
+--- a/A.txt
++++ b/A.txt
+@@ -6,4 +6,4 @@
+ Donec eu faucibus velit. Curabitur interdum diam vel ipsum tincidunt sagittis.
+ Quisque quis molestie dui.
+ Morbi ac venenatis ex, a pretium ligula. Quisque dapibus risus nec urna vehicula fermentum.
+-Ut molestie ex dolor.
++Ut molestie ex dolor.
+\ No newline at end of file
