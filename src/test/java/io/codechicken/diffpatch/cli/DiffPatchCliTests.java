@@ -81,7 +81,7 @@ public class DiffPatchCliTests extends TestBase {
     @Test
     public void testDiffOptions() throws IOException {
         List<String> help = new ArrayList<>();
-        DiffOperation op = parse(help, "--diff", "--auto-header", "--context", "32", "--base-path-prefix", "base/", "--modified-path-prefix", "modified/", "--summary", "./a", "./b");
+        DiffOperation op = parse(help, "--diff", "--auto-header", "--context", "32", "--line-ending", "CR", "--base-path-prefix", "base/", "--modified-path-prefix", "modified/", "--summary", "./a", "./b");
         assertTrue(help.isEmpty());
         assertNotNull(op);
         assertTrue(op.summary);
@@ -92,7 +92,7 @@ public class DiffPatchCliTests extends TestBase {
         assertTrue(op.autoHeader);
         assertEquals(32, op.context);
         assertTrue(op.patchOutput instanceof Output.SingleOutput.ToStream);
-        assertEquals(System.lineSeparator(), op.lineEnding);
+        assertEquals(DiffPatchCli.LineEnding.CR.chars, op.lineEnding);
         assertEquals(0, op.ignorePrefixes.length);
     }
 
@@ -230,7 +230,7 @@ public class DiffPatchCliTests extends TestBase {
     @Test
     public void testPatchOptions() throws IOException {
         List<String> help = new ArrayList<>();
-        PatchOperation op = parse(help, "--patch", "--summary", "--fuzz", "69.0", "-offset", "32", "--mode", "FUZZY", "--base-path-prefix", "base/", "--modified-path-prefix", "modified/", "--prefix", "asdf/", "./asdf/a", "./asdf/b");
+        PatchOperation op = parse(help, "--patch", "--summary", "--fuzz", "69.0", "-offset", "32", "--mode", "FUZZY", "--line-ending", "CR", "--base-path-prefix", "base/", "--modified-path-prefix", "modified/", "--prefix", "asdf/", "./asdf/a", "./asdf/b");
         assertTrue(help.isEmpty());
         assertNotNull(op);
         assertTrue(op.summary);
@@ -244,7 +244,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals(32, op.maxOffset);
         assertEquals(PatchMode.FUZZY, op.mode);
         assertEquals("asdf/", op.patchesPrefix);
-        assertEquals(System.lineSeparator(), op.lineEnding);
+        assertEquals(DiffPatchCli.LineEnding.CR.chars, op.lineEnding);
         assertEquals(0, op.ignorePrefixes.length);
     }
 

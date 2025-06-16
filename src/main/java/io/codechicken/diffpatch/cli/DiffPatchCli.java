@@ -77,6 +77,10 @@ public class DiffPatchCli {
                 .withRequiredArg()
                 .ofType(String.class)
                 .defaultsTo("b/");
+        OptionSpec<LineEnding> lineEndingOpt = parser.acceptsAll(asList("line-endings"), "Set the Line Endings to use. Defaults to system line endings.")
+                .withRequiredArg()
+                .withValuesConvertedBy(new EnumConverter<LineEnding>(LineEnding.class) { })
+                .defaultsTo(LineEnding.system());
 
         //Diff specific
         OptionSpec<Void> doDiffOpt = parser.acceptsAll(asList("d", "diff"), "Does a Diff operation.");
@@ -139,6 +143,7 @@ public class DiffPatchCli {
         }
 
         boolean summary = optSet.has(summaryOpt);
+        LineEnding lineEnding = optSet.valueOf(lineEndingOpt);
         List<String> arguments = optSet.valuesOf(nonOptions);
 
         if (arguments.size() != 2) {
@@ -193,6 +198,7 @@ public class DiffPatchCli {
                     .context(optSet.valueOf(contextOpt))
                     .aPrefix(basePathPrefix)
                     .bPrefix(modifiedPathPrefix)
+                    .lineEnding(lineEnding.chars)
                     .build();
         }
         if (optSet.has(doPatchOpt)) {
@@ -251,6 +257,7 @@ public class DiffPatchCli {
                     .patchesPrefix(optSet.valueOf(patchPrefix))
                     .aPrefix(basePathPrefix)
                     .bPrefix(modifiedPathPrefix)
+                    .lineEnding(lineEnding.chars)
                     .build();
         }
 
@@ -264,5 +271,28 @@ public class DiffPatchCli {
         if (detectFrom != null) return ArchiveFormat.findFormat(detectFrom.getFileName());
 
         return null;
+    }
+
+    public enum LineEnding {
+        CR("\r"),
+        LF("\n"),
+        CRLF("\r\n");
+        public final String chars;
+
+        LineEnding(String chars) {
+            this.chars = chars;
+        }
+
+        public static LineEnding system() {
+            switch (System.lineSeparator()) {
+                case "\r":
+                    return CR;
+                case "\r\n":
+                    return CRLF;
+                case "\n":
+                default: // No idea, just return LF
+                    return LF;
+            }
+        }
     }
 }
