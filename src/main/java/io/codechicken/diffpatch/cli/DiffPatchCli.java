@@ -16,6 +16,7 @@ import joptsimple.OptionSpec;
 import joptsimple.util.EnumConverter;
 import joptsimple.util.PathConverter;
 import net.covers1624.quack.util.SneakyUtils;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
@@ -63,7 +64,7 @@ public class DiffPatchCli {
         OptionSpec<Path> outputOpt = parser.acceptsAll(asList("o", "output"), "Sets the output path.")
                 .withRequiredArg()
                 .withValuesConvertedBy(new PathConverter());
-        OptionSpec<ArchiveFormat> archiveOpt = parser.acceptsAll(asList("A", "archive"), "Treat output as an archive. Allows printing multi-output to STDOUT.")
+        OptionSpec<ArchiveFormat> outputArchiveOpt = parser.acceptsAll(asList("A", "archive"), "Treat output as an archive. Allows printing multi-output to STDOUT.")
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
         OptionSpec<ArchiveFormat> baseArchiveOpt = parser.acceptsAll(asList("B", "archive-base"), "Treat the base path as an archive.")
@@ -157,47 +158,28 @@ public class DiffPatchCli {
             Path bPath = Paths.get(arguments.get(1));
             Path outputPath = optSet.valueOf(outputOpt);
 
-            ArchiveFormat aFormat = detectFormat(optSet.valueOf(baseArchiveOpt), aPath);
-            ArchiveFormat bFormat = detectFormat(optSet.valueOf(modifiedArchiveOpt), bPath);
-            ArchiveFormat outputFormat = detectFormat(optSet.valueOf(archiveOpt), outputPath);
-
-            String basePathPrefix = optSet.valueOf(basePathPrefixOpt);
-            String modifiedPathPrefix = optSet.valueOf(modifiedPathPrefixOpt);
-
-            Output output;
-            if (outputFormat != null) {
-                output = outputPath != null ? MultiOutput.archive(outputFormat, outputPath) : MultiOutput.archive(outputFormat, pipe);
-            } else if (outputPath != null) {
-                output = Files.isDirectory(outputPath) ? MultiOutput.folder(outputPath) : SingleOutput.path(outputPath);
-            } else {
-                output = SingleOutput.pipe(pipe);
-            }
-
-            Input aInput;
-            if (aFormat != null) {
-                aInput = MultiInput.archive(aFormat, aPath);
-            } else {
-                aInput = Files.isDirectory(aPath) ? MultiInput.folder(aPath) : Input.SingleInput.path(aPath);
-            }
-
-            Input bInput;
-            if (bFormat != null) {
-                bInput = MultiInput.archive(bFormat, bPath);
-            } else {
-                bInput = Files.isDirectory(bPath) ? MultiInput.folder(bPath) : Input.SingleInput.path(bPath);
-            }
             return DiffOperation.builder()
                     .logTo(logger)
                     .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
-                    .baseInput(aInput)
-                    .changedInput(bInput)
-                    .patchesOutput(output)
+                    .baseInput(getInput(
+                            detectFormat(optSet.valueOf(baseArchiveOpt), aPath),
+                            aPath
+                    ))
+                    .changedInput(getInput(
+                            detectFormat(optSet.valueOf(modifiedArchiveOpt), bPath),
+                            bPath
+                    ))
+                    .patchesOutput(getOutput(
+                            detectFormat(optSet.valueOf(outputArchiveOpt), outputPath),
+                            outputPath,
+                            pipe
+                    ))
                     .level(level)
                     .summary(summary)
                     .autoHeader(optSet.has(autoHeaderOpt))
                     .context(optSet.valueOf(contextOpt))
-                    .aPrefix(basePathPrefix)
-                    .bPrefix(modifiedPathPrefix)
+                    .aPrefix(optSet.valueOf(basePathPrefixOpt))
+                    .bPrefix(optSet.valueOf(modifiedPathPrefixOpt))
                     .lineEnding(lineEnding.chars)
                     .build();
         }
@@ -206,63 +188,69 @@ public class DiffPatchCli {
             Path patches = Paths.get(arguments.get(1));
             Path outputPath = optSet.valueOf(outputOpt);
             Path rejectsPath = optSet.valueOf(rejectOpt);
-            ArchiveFormat baseFormat = detectFormat(optSet.valueOf(baseArchiveOpt), base);
-            ArchiveFormat patchesFormat = detectFormat(optSet.valueOf(patchesArchiveOpt), patches);
-            ArchiveFormat outputFormat = detectFormat(optSet.valueOf(archiveOpt), outputPath);
-            ArchiveFormat rejectsFormat = detectFormat(optSet.valueOf(rejectArchiveOpt), rejectsPath);
-            String basePathPrefix = optSet.valueOf(basePathPrefixOpt);
-            String modifiedPathPrefix = optSet.valueOf(modifiedPathPrefixOpt);
-
-            Input baseInput;
-            if (baseFormat != null) {
-                baseInput = MultiInput.archive(baseFormat, base);
-            } else {
-                baseInput = Files.isDirectory(base) ? MultiInput.folder(base) : Input.SingleInput.path(base);
-            }
-            Input patchesInput;
-            if (patchesFormat != null) {
-                patchesInput = MultiInput.archive(patchesFormat, patches);
-            } else {
-                patchesInput = Files.isDirectory(patches) ? MultiInput.folder(patches) : Input.SingleInput.path(patches);
-            }
-            Output output;
-            if (outputFormat != null) {
-                output = outputPath != null ? MultiOutput.archive(outputFormat, outputPath) : MultiOutput.archive(outputFormat, pipe);
-            } else if (outputPath != null) {
-                output = Files.isDirectory(outputPath) ? MultiOutput.folder(outputPath) : SingleOutput.path(outputPath);
-            } else {
-                output = SingleOutput.pipe(pipe);
-            }
-            Output rejects = null;
-            if (rejectsPath != null) {
-                if (rejectsFormat != null) {
-                    rejects = MultiOutput.archive(rejectsFormat, rejectsPath);
-                } else {
-                    rejects = Files.isDirectory(rejectsPath) ? MultiOutput.folder(rejectsPath) : SingleOutput.path(rejectsPath);
-                }
-            }
 
             return PatchOperation.builder()
                     .logTo(logger)
                     .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
                     .level(level)
                     .summary(summary)
-                    .baseInput(baseInput)
-                    .patchesInput(patchesInput)
-                    .patchedOutput(output)
-                    .rejectsOutput(rejects)
+                    .baseInput(getInput(
+                            detectFormat(optSet.valueOf(baseArchiveOpt), base),
+                            base
+                    ))
+                    .patchesInput(getInput(
+                            detectFormat(optSet.valueOf(patchesArchiveOpt), patches),
+                            patches
+                    ))
+                    .patchedOutput(getOutput(
+                            detectFormat(optSet.valueOf(outputArchiveOpt), outputPath),
+                            outputPath,
+                            pipe
+                    ))
+                    .rejectsOutput(getOutput(
+                            detectFormat(optSet.valueOf(rejectArchiveOpt), rejectsPath),
+                            rejectsPath,
+                            null
+                    ))
                     .minFuzz(optSet.valueOf(fuzzOpt))
                     .maxOffset(optSet.valueOf(offsetOpt))
                     .mode(optSet.valueOf(modeOpt))
                     .patchesPrefix(optSet.valueOf(patchPrefix))
-                    .aPrefix(basePathPrefix)
-                    .bPrefix(modifiedPathPrefix)
+                    .aPrefix(optSet.valueOf(basePathPrefixOpt))
+                    .bPrefix(optSet.valueOf(modifiedPathPrefixOpt))
                     .lineEnding(lineEnding.chars)
                     .build();
         }
 
         logger.println("Expected --diff or --patch.");
         parser.printHelpOn(logger);
+        return null;
+    }
+
+    private static Input getInput(@Nullable ArchiveFormat format, Path path) {
+        if (format != null) {
+            return MultiInput.archive(format, path);
+        }
+        return Files.isDirectory(path) ? MultiInput.folder(path) : Input.SingleInput.path(path);
+    }
+
+    @Contract ("!null,!null,_->!null;!null,_,!null->!null")
+    private static @Nullable Output getOutput(@Nullable ArchiveFormat outputFormat, @Nullable Path outputPath, @Nullable PrintStream pipe) {
+        if (outputFormat != null) {
+            if (outputPath != null) {
+                return MultiOutput.archive(outputFormat, outputPath);
+            }
+            if (pipe != null) {
+                return MultiOutput.archive(outputFormat, pipe);
+            }
+            return null;
+        }
+        if (outputPath != null) {
+            return Files.isDirectory(outputPath) ? MultiOutput.folder(outputPath) : SingleOutput.path(outputPath);
+        }
+        if (pipe != null) {
+            return SingleOutput.pipe(pipe);
+        }
         return null;
     }
 

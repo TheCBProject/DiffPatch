@@ -249,6 +249,18 @@ public class DiffPatchCliTests extends TestBase {
     }
 
     @Test
+    public void testRejectsGetsNullOutputIfOnlyArchiveFormatSpecified() throws IOException {
+        List<String> help = new ArrayList<>();
+        PatchOperation op = parse(help, "--patch", "-archive-rejects", "ZIP", "./asdf/a", "./asdf/b");
+        assertTrue(help.isEmpty());
+        assertNotNull(op);
+        assertTrue(op.baseInput instanceof Input.SingleInput.FromPath);
+        assertTrue(op.patchesInput instanceof Input.SingleInput.FromPath);
+        assertTrue(op.patchedOutput instanceof Output.SingleOutput.ToStream);
+        assertNull(op.rejectsOutput);
+    }
+
+    @Test
     public void testPatchToFile() throws IOException {
         List<String> help = new ArrayList<>();
         PatchOperation op = parse(help, "--patch",
