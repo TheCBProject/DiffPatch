@@ -395,6 +395,68 @@ public class DiffPatchCliTests extends TestBase {
     }
     // endregion
 
+    // region Bake
+    @Test
+    public void testBake() throws IOException {
+        List<String> help = new ArrayList<>();
+        BakePatchesOperation op = parse(help, "--bake", "./asdf/a");
+        assertTrue(help.isEmpty());
+        assertNotNull(op);
+        assertFalse(op.summary);
+        assertTrue(op.patchesInput instanceof Input.SingleInput.FromPath);
+        assertTrue(op.bakedOutput instanceof Output.SingleOutput.ToStream);
+        assertEquals("", op.patchesPrefix);
+        assertEquals(System.lineSeparator(), op.lineEnding);
+    }
+
+    @Test
+    public void testBakeOptions() throws IOException {
+        List<String> help = new ArrayList<>();
+        BakePatchesOperation op = parse(help, "--bake", "--summary", "--line-ending", "CR",  "--prefix", "asdf/", "./asdf/a");
+        assertTrue(help.isEmpty());
+        assertNotNull(op);
+        assertTrue(op.summary);
+        assertTrue(op.patchesInput instanceof Input.SingleInput.FromPath);
+        assertTrue(op.bakedOutput instanceof Output.SingleOutput.ToStream);
+        assertEquals("asdf/", op.patchesPrefix);
+        assertEquals(DiffPatchCli.LineEnding.CR.chars, op.lineEnding);
+    }
+
+    @Test
+    public void testBakeToFile() throws IOException {
+        List<String> help = new ArrayList<>();
+        BakePatchesOperation op = parse(help, "--bake",
+                "--output", "./asdf/o",
+                "./asdf/a"
+        );
+        assertTrue(help.isEmpty());
+        assertNotNull(op);
+        assertFalse(op.summary);
+        assertTrue(op.patchesInput instanceof Input.SingleInput.FromPath);
+        assertTrue(op.bakedOutput instanceof Output.SingleOutput.ToPath);
+        assertEquals("", op.patchesPrefix);
+        assertEquals(System.lineSeparator(), op.lineEnding);
+    }
+
+    @Test
+    public void testBakeToArchives() throws IOException {
+        List<String> help = new ArrayList<>();
+        BakePatchesOperation op = parse(help, "--bake",
+                "--output", "./asdf/o",
+                "--archive", "ZIP",
+                "--archive-base", "ZIP",
+                "./asdf/a"
+        );
+        assertTrue(help.isEmpty());
+        assertNotNull(op);
+        assertFalse(op.summary);
+        assertTrue(op.patchesInput instanceof Input.SingleInput.PathArchiveMultiInput);
+        assertTrue(op.bakedOutput instanceof Output.SingleOutput.PathArchiveMultiOutput);
+        assertEquals("", op.patchesPrefix);
+        assertEquals(System.lineSeparator(), op.lineEnding);
+    }
+    // endregion
+
     private static @Nullable <T extends CliOperation<?>> T parse(List<String> help, String... args) throws IOException {
         return unsafeCast(parseOperation(collectLines(help), new PrintStream(NullOutputStream.INSTANCE, true), args));
     }

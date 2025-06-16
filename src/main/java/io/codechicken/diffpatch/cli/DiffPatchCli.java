@@ -122,15 +122,20 @@ public class DiffPatchCli {
                 .withRequiredArg()
                 .withValuesConvertedBy(new PatchModeValueConverter())
                 .defaultsTo(PatchMode.EXACT);
-        OptionSpec<String> patchPrefix = parser.acceptsAll(asList("P", "prefix"), "Prefix path for reading patches from patches input.")
-                .availableIf(doPatchOpt)
-                .withRequiredArg()
-                .ofType(String.class)
-                .defaultsTo("");
         OptionSpec<ArchiveFormat> patchesArchiveOpt = parser.acceptsAll(asList("N", "archive-patches"), "Treat the patches path as an archive.")
                 .availableIf(doPatchOpt)
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
+
+        //Patch Baking specific
+        OptionSpec<Void> doBakeOpt = parser.acceptsAll(asList("b", "bake"), "Bake the patches, removing auto-header and DiffPatch specific formats.");
+
+        // Patch shared
+        OptionSpec<String> patchPrefix = parser.acceptsAll(asList("P", "prefix"), "Prefix path for reading patches from patches input.")
+                .availableIf(doPatchOpt, doBakeOpt)
+                .withRequiredArg()
+                .ofType(String.class)
+                .defaultsTo("");
 
         OptionSet optSet = parser.parse(args);
         if (optSet.has(helpOpt)) {
@@ -147,13 +152,13 @@ public class DiffPatchCli {
         LineEnding lineEnding = optSet.valueOf(lineEndingOpt);
         List<String> arguments = optSet.valuesOf(nonOptions);
 
-        if (arguments.size() != 2) {
-            logger.println("Expected 2 arguments, got: " + arguments.size());
-            parser.printHelpOn(logger);
-            return null;
-        }
-
         if (optSet.has(doDiffOpt)) {
+            if (arguments.size() != 2) {
+                logger.println("Expected 2 arguments, got: " + arguments.size());
+                parser.printHelpOn(logger);
+                return null;
+            }
+
             Path aPath = Paths.get(arguments.get(0));
             Path bPath = Paths.get(arguments.get(1));
             Path outputPath = optSet.valueOf(outputOpt);
@@ -184,6 +189,11 @@ public class DiffPatchCli {
                     .build();
         }
         if (optSet.has(doPatchOpt)) {
+            if (arguments.size() != 2) {
+                logger.println("Expected 2 arguments, got: " + arguments.size());
+                parser.printHelpOn(logger);
+                return null;
+            }
             Path base = Paths.get(arguments.get(0));
             Path patches = Paths.get(arguments.get(1));
             Path outputPath = optSet.valueOf(outputOpt);
@@ -222,7 +232,35 @@ public class DiffPatchCli {
                     .build();
         }
 
-        logger.println("Expected --diff or --patch.");
+        if (optSet.has(doBakeOpt)) {
+            if (arguments.size() != 1) {
+                logger.println("Expected one argument, got: " + arguments.size());
+                parser.printHelpOn(logger);
+                return null;
+            }
+            Path patchesPath = Paths.get(arguments.get(0));
+            Path outputPath = optSet.valueOf(outputOpt);
+
+            return BakePatchesOperation.builder()
+                    .logTo(logger)
+                    .helpCallback(SneakyUtils.<PrintStream>sneak(parser::printHelpOn))
+                    .level(level)
+                    .summary(summary)
+                    .patchesInput(getInput(
+                            detectFormat(optSet.valueOf(baseArchiveOpt), patchesPath),
+                            patchesPath
+                    ))
+                    .bakedOutput(getOutput(
+                            detectFormat(optSet.valueOf(outputArchiveOpt), outputPath),
+                            outputPath,
+                            pipe
+                    ))
+                    .patchesPrefix(optSet.valueOf(patchPrefix))
+                    .lineEnding(lineEnding.chars)
+                    .build();
+        }
+
+        logger.println("Expected --diff, --patch, or --bake.");
         parser.printHelpOn(logger);
         return null;
     }

@@ -8,6 +8,7 @@ import io.codechicken.diffpatch.util.Input.MultiInput;
 import io.codechicken.diffpatch.util.Input.SingleInput;
 import io.codechicken.diffpatch.util.Output.MultiOutput;
 import io.codechicken.diffpatch.util.Output.SingleOutput;
+import net.covers1624.quack.annotation.ReplaceWith;
 import net.covers1624.quack.collection.FastStream;
 import net.covers1624.quack.io.NullOutputStream;
 import net.covers1624.quack.util.SneakyUtils;
@@ -296,10 +297,14 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return true;
     }
 
+    @Deprecated
+    @ReplaceWith ("Use BakePatchesOperation")
     public static void bakePatches(MultiInput input, MultiOutput output, String lineEnding) throws IOException {
         bakePatches(input, "", output, lineEnding);
     }
 
+    @Deprecated
+    @ReplaceWith ("Use BakePatchesOperation")
     public static void bakePatches(MultiInput input, String prefix, MultiOutput output, String lineEnding) throws IOException {
         try {
             input.validate("bake input");
@@ -317,6 +322,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         }
     }
 
+    @Deprecated
+    @ReplaceWith ("No replacement, now Internal API.")
     public static String bakePatch(PatchFile patchFile, String lineEnding) {
         List<String> lines = patchFile.toLines(false);
         return String.join(lineEnding, lines) + lineEnding;
