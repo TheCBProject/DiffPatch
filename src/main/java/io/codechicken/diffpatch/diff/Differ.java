@@ -43,11 +43,13 @@ public abstract class Differ {
     }
 
     public static List<Patch> makeFileAdded(List<String> lines) {
-        return Collections.singletonList(make(lines, Operation.INSERT));
+        Patch patch = make(lines, Operation.INSERT);
+        return patch.length2 == 0 ? Collections.emptyList() : Collections.singletonList(patch);
     }
 
     public static List<Patch> makeFileRemoved(List<String> lines) {
-        return Collections.singletonList(make(lines, Operation.DELETE));
+        Patch patch = make(lines, Operation.DELETE);
+        return patch.length1 == 0 ? Collections.emptyList() : Collections.singletonList(patch);
     }
 
     public static List<Patch> makePatches(List<Diff> diffs, int numContextLines, boolean collate) {
