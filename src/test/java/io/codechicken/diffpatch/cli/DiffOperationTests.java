@@ -6,6 +6,7 @@ import io.codechicken.diffpatch.util.Input;
 import io.codechicken.diffpatch.util.LogLevel;
 import io.codechicken.diffpatch.util.Output;
 import io.codechicken.diffpatch.util.archiver.ArchiveReader;
+import net.covers1624.quack.io.NullOutputStream;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -152,5 +153,18 @@ public class DiffOperationTests extends TestBase {
         try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(output.toByteArray()))) {
             assertEquals(testResourceString("/patches/AToANoNewline.txt.patch"), new String(ar.getBytes("A.txt.patch"), StandardCharsets.UTF_8));
         }
+    }
+
+    @Test
+    public void testDiffEmpty() throws IOException {
+        CliOperation.Result<DiffOperation.DiffSummary> result = DiffOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .baseInput(Input.SingleInput.string(""))
+                .changedInput(Input.SingleInput.string(""))
+                .patchesOutput(Output.SingleOutput.pipe(NullOutputStream.INSTANCE))
+                .build()
+                .operate();
+        assertEquals(0, result.exit);
     }
 }
