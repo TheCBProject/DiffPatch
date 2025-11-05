@@ -20,6 +20,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static io.codechicken.diffpatch.util.LogLevel.*;
 import static io.codechicken.diffpatch.util.Utils.filterPrefixed;
@@ -41,8 +42,24 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     final Output patchOutput;
     final String lineEnding;
     final String[] ignorePrefixes;
+    private final Supplier<Differ> differFactory;
 
-    private DiffOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input changedInput, String aPrefix, String bPrefix, boolean autoHeader, int context, Output patchOutput, String lineEnding, String[] ignorePrefixes) {
+    private DiffOperation(
+            PrintStream logger,
+            LogLevel level,
+            Consumer<PrintStream> helpCallback,
+            boolean summary,
+            Input baseInput,
+            Input changedInput,
+            String aPrefix,
+            String bPrefix,
+            boolean autoHeader,
+            int context,
+            Output patchOutput,
+            String lineEnding,
+            String[] ignorePrefixes,
+            Supplier<Differ> differFactory
+    ) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.baseInput = baseInput;
@@ -54,6 +71,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         this.patchOutput = patchOutput;
         this.lineEnding = lineEnding;
         this.ignorePrefixes = ignorePrefixes;
+        this.differFactory = differFactory;
     }
 
     public static Builder builder() {
@@ -209,7 +227,6 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
     }
 
     private List<String> doDiff(DiffSummary summary, @Nullable String aName, @Nullable String bName, List<String> aLines, List<String> bLines, int context, boolean autoHeader) {
-        PatienceDiffer differ = new PatienceDiffer();
         PatchFile patchFile = new PatchFile();
         patchFile.basePath = aName != null ? aName : "/dev/null";
         patchFile.patchedPath = bName != null ? bName : "/dev/null";
@@ -218,7 +235,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         } else if (bLines.isEmpty()) {
             patchFile.patches = Differ.makeFileRemoved(aLines);
         } else {
-            patchFile.patches = differ.makePatches(aLines, bLines, context, true);
+            patchFile.patches = differFactory.get().makePatches(aLines, bLines, context, true);
         }
         if (patchFile.patches.isEmpty()) {
             log(DEBUG, "%s -> %s\n No changes.", aName, bName);
@@ -281,6 +298,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         private String aPrefix = "a/";
         private String bPrefix = "b/";
         private String lineEnding = System.lineSeparator();
+        private Supplier<Differ> differFactory = PatienceDiffer::new;
 
         private final List<String> ignorePrefixes = new LinkedList<>();
 
@@ -360,12 +378,32 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
             return this;
         }
 
+        public Builder differFactory(Supplier<Differ> factory) {
+            differFactory = factory;
+            return this;
+        }
+
         public DiffOperation build() {
             if (baseInput == null) throw new IllegalStateException("baseInput is required.");
             if (changedInput == null) throw new IllegalStateException("changedInput is required.");
             if (patchesOutput == null) throw new IllegalStateException("patchesOutput is required.");
 
-            return new DiffOperation(logger, level, helpCallback, summary, baseInput, changedInput, aPrefix, bPrefix, autoHeader, context, patchesOutput, lineEnding, ignorePrefixes.toArray(new String[0]));
+            return new DiffOperation(
+                    logger,
+                    level,
+                    helpCallback,
+                    summary,
+                    baseInput,
+                    changedInput,
+                    aPrefix,
+                    bPrefix,
+                    autoHeader,
+                    context,
+                    patchesOutput,
+                    lineEnding,
+                    ignorePrefixes.toArray(new String[0]),
+                    differFactory
+            );
         }
     }
 }
