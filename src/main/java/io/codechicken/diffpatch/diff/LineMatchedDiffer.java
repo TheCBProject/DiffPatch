@@ -15,8 +15,8 @@ public class LineMatchedDiffer extends PatienceDiffer {
     private List<String> wordModeLines1 = new ArrayList<>();
     private List<String> wordModeLines2 = new ArrayList<>();
 
-    private int maxMatchOffset;
-    private int minMatchScore;
+    private int maxMatchOffset = FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET;
+    private float minMatchScore = FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE;
 
     public LineMatchedDiffer() {
         super();
@@ -43,7 +43,7 @@ public class LineMatchedDiffer extends PatienceDiffer {
     public List<String> getWordModeLines2() { return wordModeLines2; }
     public int getMaxMatchOffset() { return maxMatchOffset; }
     public void setMaxMatchOffset(int maxMatchOffset) { this.maxMatchOffset = maxMatchOffset; }
-    public int getMinMatchScore() { return minMatchScore; }
-    public void setMinMatchScore(int minMatchScore) { this.minMatchScore = minMatchScore; }
+    public float getMinMatchScore() { return minMatchScore; }
+    public void setMinMatchScore(float minMatchScore) { this.minMatchScore = minMatchScore; }
     //@formatter:on
 }
