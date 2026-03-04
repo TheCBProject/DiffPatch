@@ -295,7 +295,9 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
                 rejectCollector.consume(baseName + ".rej.patch", rejects.toLines(false));
             } else {
                 List<String> rejectLines = new ArrayList<>();
-                for (RejectedHunk r : rejectedHunks) {
+                for (int i = 0; i < rejectedHunks.size(); i++) {
+                    if (i != 0) rejectLines.add(" ");
+                    RejectedHunk r = rejectedHunks.get(i);
                     rejectLines.add("++++ REJECTED HUNK: " + (r.index + 1));
                     rejectLines.add(r.hunk.getHeader());
                     FastStream.of(r.hunk.diffs).map(Diff::toString).forEach(rejectLines::add);
