@@ -94,7 +94,7 @@ public class PatchOperationTests extends TestBase {
     }
 
     @Test
-    public void testPatchReject() throws IOException {
+    public void testPatchRejectLegacy() throws IOException {
         // We try and patch B with the A -> B patch.
         byte[] base = new ArchiveBuilder()
                 .put("A.txt", testResource("/files/B.txt"))
@@ -122,6 +122,39 @@ public class PatchOperationTests extends TestBase {
         }
         try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(rejects.toByteArray()))) {
             assertEquals(testResourceString("/rejects/ModifiedA.txt.patch.rej"), new String(ar.getBytes("A.txt.patch.rej"), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    public void testPatchReject() throws IOException {
+        // We try and patch B with the A -> B patch.
+        byte[] base = new ArchiveBuilder()
+                .put("A.txt", testResource("/files/B.txt"))
+                .toBytes(ZIP);
+        byte[] patches = new ArchiveBuilder()
+                .put("A.txt.patch", testResource("/patches/ModifiedA.txt.patch"))
+                .toBytes(ZIP);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ByteArrayOutputStream rejects = new ByteArrayOutputStream();
+        CliOperation.Result<PatchOperation.PatchesSummary> result = PatchOperation.builder()
+                .logTo(System.out)
+                .level(LogLevel.ALL)
+                .baseInput(MultiInput.archive(ZIP, base))
+                .patchesInput(MultiInput.archive(ZIP, patches))
+                .rejectsOutput(MultiOutput.archive(ZIP, rejects))
+                .rejectsAsPatches(true)
+                .patchedOutput(MultiOutput.archive(ZIP, output))
+                .build()
+                .operate();
+
+        assertEquals(1, result.exit);
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(output.toByteArray()))) {
+            // The 'A' file (which was B as input), should just be 'B' as we rejected the hunk.
+            assertEquals(testResourceString("/files/B.txt"), new String(ar.getBytes("A.txt"), StandardCharsets.UTF_8));
+        }
+        try (ArchiveReader ar = ZIP.createReader(new ByteArrayInputStream(rejects.toByteArray()))) {
+            assertEquals(testResourceString("/patches/ModifiedA.txt.patch"), new String(ar.getBytes("A.txt.rej.patch"), StandardCharsets.UTF_8));
         }
     }
 

@@ -107,6 +107,7 @@ public class DiffPatchCli {
                 .availableIf(doPatchOpt)
                 .withRequiredArg()
                 .withValuesConvertedBy(new ArchiveFormatValueConverter());
+        OptionSpec<Void> rejectAsPatches = parser.acceptsAll(asList("rejects-as-patches"), "Output rejected hunks as patch files, instead of a semi-custom format.");
         OptionSpec<Float> fuzzOpt = parser.acceptsAll(asList("f", "fuzz"), "The minimum fuzz match quality, anything lower will be treated as a failure.")
                 .availableIf(doPatchOpt)
                 .withRequiredArg()
@@ -222,6 +223,7 @@ public class DiffPatchCli {
                             rejectsPath,
                             null
                     ))
+                    .rejectsAsPatches(optSet.has(rejectAsPatches))
                     .minFuzz(optSet.valueOf(fuzzOpt))
                     .maxOffset(optSet.valueOf(offsetOpt))
                     .mode(optSet.valueOf(modeOpt))
