@@ -38,6 +38,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     final String bPrefix;
     final Output patchedOutput;
     final @Nullable Output rejectsOutput;
+    final boolean rejectsAsPatches;
     final float minFuzz;
     final int maxOffset;
     final PatchMode mode;
@@ -45,7 +46,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     final String lineEnding;
     final String[] ignorePrefixes;
 
-    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input patchesInput, String aPrefix, String bPrefix, Output patchedOutput, @Nullable Output rejectsOutput, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
+    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input patchesInput, String aPrefix, String bPrefix, Output patchedOutput, @Nullable Output rejectsOutput, boolean rejectsAsPatches, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.baseInput = baseInput;
@@ -54,6 +55,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         this.bPrefix = bPrefix;
         this.patchedOutput = patchedOutput;
         this.rejectsOutput = rejectsOutput;
+        this.rejectsAsPatches = rejectsAsPatches;
         this.minFuzz = minFuzz;
         this.maxOffset = maxOffset;
         this.mode = mode;
@@ -236,7 +238,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         Patcher patcher = new Patcher(patchFile, base, minFuzz, maxOffset);
         log(DEBUG, "Patching: " + baseName);
         List<Patcher.Result> results = patcher.patch(mode);
-        List<String> rejectLines = new ArrayList<>();
+        List<RejectedHunk> rejectedHunks = new ArrayList<>();
         boolean first = true;
         for (int i = 0; i < results.size(); i++) {
             Patcher.Result result = results.get(i);
@@ -264,17 +266,12 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             }
 
             if (!result.success) {
-                if (!first) {
-                    rejectLines.add("");
-                } else if (!level.shouldLog(DEBUG)) { // Log the patch name as warn, only if its failed, and we haven't logged it already (top of this function.)
+                if (first && !level.shouldLog(DEBUG)) { // Log the patch name as warn, only if its failed, and we haven't logged it already (top of this function.)
                     log(WARN, "Patching: " + baseName);
                 }
                 log(WARN, " Hunk %d: %s", i, result.summary());
                 first = false;
-                rejectLines.add("++++ REJECTED HUNK: " + (i + 1));
-                rejectLines.add(result.patch.getHeader());
-                FastStream.of(result.patch.diffs).map(Diff::toString).forEach(rejectLines::add);
-                rejectLines.add("++++ END HUNK");
+                rejectedHunks.add(new RejectedHunk(i, result.patch));
             } else {
                 log(DEBUG, " Hunk %d: %s", i, result.summary());
             }
@@ -290,8 +287,23 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             }
         }
         outputCollector.consume(baseName, lines);
-        if (!rejectLines.isEmpty()) {
-            rejectCollector.consume(patchFile.name + ".rej", rejectLines);
+
+        if (!rejectedHunks.isEmpty()) {
+            if (rejectsAsPatches) {
+                PatchFile rejects = new PatchFile(patchFile.name, patchFile.basePath, patchFile.patchedPath);
+                rejectedHunks.forEach(e -> rejects.patches.add(e.hunk));
+                rejectCollector.consume(baseName + ".rej.patch", rejects.toLines(false));
+            } else {
+                List<String> rejectLines = new ArrayList<>();
+                for (RejectedHunk r : rejectedHunks) {
+                    rejectLines.add("++++ REJECTED HUNK: " + (r.index + 1));
+                    rejectLines.add(r.hunk.getHeader());
+                    FastStream.of(r.hunk.diffs).map(Diff::toString).forEach(rejectLines::add);
+                    rejectLines.add("++++ END HUNK");
+                }
+
+                rejectCollector.consume(patchFile.name + ".rej", rejectLines);
+            }
             return false;
         }
         return true;
@@ -327,6 +339,17 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     public static String bakePatch(PatchFile patchFile, String lineEnding) {
         List<String> lines = patchFile.toLines(false);
         return String.join(lineEnding, lines) + lineEnding;
+    }
+
+    // TODO record when J17+
+    private static class RejectedHunk {
+        public final int index;
+        public final Patch hunk;
+
+        private RejectedHunk(int index, Patch hunk) {
+            this.index = index;
+            this.hunk = hunk;
+        }
     }
 
     public static class PatchesSummary {
@@ -376,6 +399,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private @Nullable Input patchesInput;
         private @Nullable Output patchedOutput;
         private @Nullable Output rejectsOutput;
+        private boolean rejectsAsPatches = false;
         private float minFuzz = FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE;
         private int maxOffset = FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET;
         private PatchMode mode = PatchMode.EXACT;
@@ -448,6 +472,11 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             return this;
         }
 
+        public Builder rejectsAsPatches(boolean rejectsAsPatches) {
+            this.rejectsAsPatches = rejectsAsPatches;
+            return this;
+        }
+
         public Builder minFuzz(float minFuzz) {
             this.minFuzz = minFuzz;
             return this;
@@ -483,7 +512,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (patchesInput == null) throw new IllegalStateException("patchesInput is required.");
             if (patchedOutput == null) throw new IllegalStateException("patchedOutput is required.");
 
-            return new PatchOperation(logger, level, helpCallback, summary, baseInput, patchesInput, aPrefix, bPrefix, patchedOutput, rejectsOutput, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
+            return new PatchOperation(logger, level, helpCallback, summary, baseInput, patchesInput, aPrefix, bPrefix, patchedOutput, rejectsOutput, rejectsAsPatches, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
         }
     }
 }

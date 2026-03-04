@@ -219,6 +219,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals("b/", op.bPrefix);
         assertTrue(op.patchedOutput instanceof Output.SingleOutput.ToStream);
         assertNull(op.rejectsOutput);
+        assertFalse(op.rejectsAsPatches);
         assertEquals(FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE, op.minFuzz);
         assertEquals(FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET, op.maxOffset);
         assertEquals(PatchMode.EXACT, op.mode);
@@ -230,7 +231,7 @@ public class DiffPatchCliTests extends TestBase {
     @Test
     public void testPatchOptions() throws IOException {
         List<String> help = new ArrayList<>();
-        PatchOperation op = parse(help, "--patch", "--summary", "--fuzz", "69.0", "-offset", "32", "--mode", "FUZZY", "--line-ending", "CR", "--base-path-prefix", "base/", "--modified-path-prefix", "modified/", "--prefix", "asdf/", "./asdf/a", "./asdf/b");
+        PatchOperation op = parse(help, "--patch", "--summary", "--rejects-as-patches", "--fuzz", "69.0", "-offset", "32", "--mode", "FUZZY", "--line-ending", "CR", "--base-path-prefix", "base/", "--modified-path-prefix", "modified/", "--prefix", "asdf/", "./asdf/a", "./asdf/b");
         assertTrue(help.isEmpty());
         assertNotNull(op);
         assertTrue(op.summary);
@@ -240,6 +241,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals("modified/", op.bPrefix);
         assertTrue(op.patchedOutput instanceof Output.SingleOutput.ToStream);
         assertNull(op.rejectsOutput);
+        assertTrue(op.rejectsAsPatches);
         assertEquals(69.0F, op.minFuzz);
         assertEquals(32, op.maxOffset);
         assertEquals(PatchMode.FUZZY, op.mode);
@@ -278,6 +280,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals("b/", op.bPrefix);
         assertTrue(op.patchedOutput instanceof Output.SingleOutput.ToPath);
         assertTrue(op.rejectsOutput instanceof Output.SingleOutput.ToPath);
+        assertFalse(op.rejectsAsPatches);
         assertEquals(FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE, op.minFuzz);
         assertEquals(FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET, op.maxOffset);
         assertEquals(PatchMode.EXACT, op.mode);
@@ -308,6 +311,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals("b/", op.bPrefix);
         assertTrue(op.patchedOutput instanceof Output.SingleOutput.PathArchiveMultiOutput);
         assertTrue(op.rejectsOutput instanceof Output.SingleOutput.PathArchiveMultiOutput);
+        assertFalse(op.rejectsAsPatches);
         assertEquals(FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE, op.minFuzz);
         assertEquals(FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET, op.maxOffset);
         assertEquals(PatchMode.EXACT, op.mode);
@@ -334,6 +338,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals("b/", op.bPrefix);
         assertTrue(op.patchedOutput instanceof Output.SingleOutput.PipeArchiveMultiOutput);
         assertTrue(op.rejectsOutput instanceof Output.SingleOutput.PathArchiveMultiOutput);
+        assertFalse(op.rejectsAsPatches);
         assertEquals(FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE, op.minFuzz);
         assertEquals(FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET, op.maxOffset);
         assertEquals(PatchMode.EXACT, op.mode);
@@ -360,6 +365,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals("b/", op.bPrefix);
         assertTrue(op.patchedOutput instanceof Output.SingleOutput.PathArchiveMultiOutput);
         assertTrue(op.rejectsOutput instanceof Output.SingleOutput.PathArchiveMultiOutput);
+        assertFalse(op.rejectsAsPatches);
         assertEquals(FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE, op.minFuzz);
         assertEquals(FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET, op.maxOffset);
         assertEquals(PatchMode.EXACT, op.mode);
@@ -386,6 +392,7 @@ public class DiffPatchCliTests extends TestBase {
         assertEquals("b/", op.bPrefix);
         assertTrue(op.patchedOutput instanceof Output.FolderMultiOutput);
         assertTrue(op.rejectsOutput instanceof Output.FolderMultiOutput);
+        assertFalse(op.rejectsAsPatches);
         assertEquals(FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE, op.minFuzz);
         assertEquals(FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET, op.maxOffset);
         assertEquals(PatchMode.EXACT, op.mode);

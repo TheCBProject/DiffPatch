@@ -22,6 +22,15 @@ public class PatchFile {
 
     public List<Patch> patches = new ArrayList<>();
 
+    public PatchFile() {
+    }
+
+    public PatchFile(@Nullable String name, @Nullable String basePath, @Nullable String patchedPath) {
+        this.name = name;
+        this.basePath = basePath;
+        this.patchedPath = patchedPath;
+    }
+
     public static PatchFile fromLines(String name, List<String> lines, boolean verifyHeaders) {
         PatchFile patchFile = new PatchFile();
         patchFile.name = name;
