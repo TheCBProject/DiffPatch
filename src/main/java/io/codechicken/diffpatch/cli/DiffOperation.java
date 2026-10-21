@@ -235,7 +235,7 @@ public class DiffOperation extends CliOperation<DiffOperation.DiffSummary> {
         } else if (bLines.isEmpty()) {
             patchFile.patches = Differ.makeFileRemoved(aLines);
         } else {
-            patchFile.patches = differFactory.get().makePatches(aLines, bLines, context, true);
+            patchFile.patches = differFactory.get().makePatches(aLines, bLines, context);
         }
         if (patchFile.patches.isEmpty()) {
             log(DEBUG, "%s -> %s\n No changes.", aName, bName);
