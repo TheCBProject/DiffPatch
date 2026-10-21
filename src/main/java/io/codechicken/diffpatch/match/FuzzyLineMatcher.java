@@ -316,7 +316,7 @@ public class FuzzyLineMatcher {
             return path;
         }
 
-        public String visualise() {
+        public String visualize() {
             int[] path = path();
             StringBuilder sb = new StringBuilder();
             for (int j = 0; j <= maxOffset; j++) {
@@ -331,6 +331,22 @@ public class FuzzyLineMatcher {
                 }
                 sb.append("\n");
             }
+
+            sb.append("-:");
+            sb.append(" ");
+            for (int i = 1; i < patternLength; i++) {
+                int offset = path[i] - path[i-1] - 1;
+                int penalty = Math.round(-0.5f * offset * 100);
+                if (path[i] < 0 || penalty == 0) {
+                    sb.append("    ");
+                } else {
+                    sb.append(String.format("%-4d", penalty));
+                }
+            }
+            sb.append("\n");
+
+            float sum = matches[firstNode].nodes[0].sum * 100;
+            sb.append("Total Score: ").append(Math.round(sum)).append(" / ").append(patternLength * 100).append(" = ").append(Math.round(sum / patternLength)).append("%\n");
             return sb.toString();
         }
 
