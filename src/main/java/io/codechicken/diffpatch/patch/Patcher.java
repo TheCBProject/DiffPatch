@@ -1,6 +1,7 @@
 package io.codechicken.diffpatch.patch;
 
 import io.codechicken.diffpatch.match.FuzzyLineMatcher;
+import io.codechicken.diffpatch.match.FuzzyMatchOptions;
 import io.codechicken.diffpatch.util.*;
 import net.covers1624.quack.collection.ColUtils;
 import net.covers1624.quack.collection.FastStream;
@@ -31,26 +32,24 @@ public class Patcher {
     private @Nullable String lmText;
     private @Nullable List<String> wmLines;
 
-    public final int maxMatchOffset;
-    public final float minMatchScore;
+    private final FuzzyMatchOptions fuzzyOptions;
 
     public Patcher(PatchFile patchFile, List<String> lines) {
-        this(patchFile, lines, null, FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE, FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET);
+        this(patchFile, lines, null, FuzzyMatchOptions.DEFAULT);
     }
 
-    public Patcher(PatchFile patchFile, List<String> lines, float minFuzz, int maxOffset) {
-        this(patchFile, lines, null, minFuzz, maxOffset);
+    public Patcher(PatchFile patchFile, List<String> lines, FuzzyMatchOptions fuzzyOptions) {
+        this(patchFile, lines, null, fuzzyOptions);
     }
 
-    public Patcher(PatchFile patchFile, List<String> lines, @Nullable CharRepresenter charRep, float minFuzz, int maxOffset) {
+    public Patcher(PatchFile patchFile, List<String> lines, @Nullable CharRepresenter charRep, FuzzyMatchOptions fuzzyOptions) {
         this.patches = FastStream.of(patchFile.patches).map(WorkingPatch::new).toList();
         this.lines = new ArrayList<>(lines);
         if (charRep == null) {
             charRep = new CharRepresenter();
         }
         this.charRep = charRep;
-        this.minMatchScore = minFuzz;
-        this.maxMatchOffset = maxOffset;
+        this.fuzzyOptions = fuzzyOptions;
     }
 
     public List<Result> patch(PatchMode mode) {
@@ -356,32 +355,32 @@ public class Patcher {
         // parts of file to search in
         List<LineRange> ranges = LineRange.fromStartLen(0, wmLines.size()).except(keepoutRanges);
 
-        return fuzzyMatch(wmContext, wmLines, loc, maxMatchOffset, minMatchScore, ranges);
+        return fuzzyMatch(wmContext, wmLines, loc, fuzzyOptions, ranges);
     }
 
-    public static Pair<int[], Float> fuzzyMatch(List<String> wmPattern, List<String> wmText, int loc, int maxMatchOffset, float minMatchScore, @Nullable List<LineRange> ranges) {
+    public static Pair<int[], Float> fuzzyMatch(List<String> wmPattern, List<String> wmText, int loc, FuzzyMatchOptions fuzzyOptions, @Nullable List<LineRange> ranges) {
         if (ranges == null) {
             ranges = Collections.singletonList(LineRange.fromStartLen(0, wmText.size()));
         }
 
         // we're creating twice as many MatchMatrix objects as we need, incurring some wasted allocation and setup time, but it reads easier than trying to precompute all the edge cases
         List<FuzzyLineMatcher.MatchMatrix> fwdMatchers = FastStream.of(ranges)
-                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))
+                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, fuzzyOptions.maxMatchOffset(), r))
                 .filter(m -> loc < m.workingRange.getLast())
                 .toList();
         List<FuzzyLineMatcher.MatchMatrix> revMatchers = FastStream.of(ranges)
                 .reversed()
-                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, maxMatchOffset, r))
+                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, fuzzyOptions.maxMatchOffset(), r))
                 .filter(m -> loc > m.workingRange.getFirst())
                 .toList();
 
         int warnDist = offsetWarnDistance(wmPattern.size(), wmText.size());
-        float penaltyPerLine = 1f / (10 * warnDist);
+        float penaltyPerLine = fuzzyOptions.enableDistancePenalty() ? 1f / (10 * warnDist) : 0;
 
         MatchRunner fwd = new MatchRunner(loc, 1, fwdMatchers, penaltyPerLine);
         MatchRunner rev = new MatchRunner(loc, -1, revMatchers, penaltyPerLine);
 
-        AtomicReference<Float> bestScore = new AtomicReference<>(minMatchScore);
+        AtomicReference<Float> bestScore = new AtomicReference<>(fuzzyOptions.minMatchScore());
         AtomicReference<int[]> bestMatch = new AtomicReference<>(null);
         while (fwd.step(bestScore, bestMatch) | rev.step(bestScore, bestMatch)) {
             // Empty body.

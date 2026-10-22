@@ -1,6 +1,7 @@
 package io.codechicken.diffpatch.cli;
 
 import io.codechicken.diffpatch.match.FuzzyLineMatcher;
+import io.codechicken.diffpatch.match.FuzzyMatchOptions;
 import io.codechicken.diffpatch.patch.Patcher;
 import io.codechicken.diffpatch.util.*;
 import io.codechicken.diffpatch.util.FileCollector.CollectedEntry;
@@ -39,14 +40,13 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
     final Output patchedOutput;
     final @Nullable Output rejectsOutput;
     final boolean rejectsAsPatches;
-    final float minFuzz;
-    final int maxOffset;
+    final FuzzyMatchOptions fuzzyOptions;
     final PatchMode mode;
     final String patchesPrefix;
     final String lineEnding;
     final String[] ignorePrefixes;
 
-    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input patchesInput, String aPrefix, String bPrefix, Output patchedOutput, @Nullable Output rejectsOutput, boolean rejectsAsPatches, float minFuzz, int maxOffset, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
+    private PatchOperation(PrintStream logger, LogLevel level, Consumer<PrintStream> helpCallback, boolean summary, Input baseInput, Input patchesInput, String aPrefix, String bPrefix, Output patchedOutput, @Nullable Output rejectsOutput, boolean rejectsAsPatches, FuzzyMatchOptions fuzzyOptions, PatchMode mode, String patchesPrefix, String lineEnding, String[] ignorePrefixes) {
         super(logger, level, helpCallback);
         this.summary = summary;
         this.baseInput = baseInput;
@@ -56,8 +56,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         this.patchedOutput = patchedOutput;
         this.rejectsOutput = rejectsOutput;
         this.rejectsAsPatches = rejectsAsPatches;
-        this.minFuzz = minFuzz;
-        this.maxOffset = maxOffset;
+        this.fuzzyOptions = fuzzyOptions;
         this.mode = mode;
         this.patchesPrefix = patchesPrefix;
         this.lineEnding = lineEnding;
@@ -107,7 +106,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             SingleOutput rejects = (SingleOutput) rejectsOutput;
 
             PatchFile patchFile = PatchFile.fromLines(patches.name(), patches.readLines(), true);
-            boolean success = doPatch(outputCollector, rejectCollector, summary, base.name(), base.readLines(), patchFile, minFuzz, maxOffset, mode);
+            boolean success = doPatch(outputCollector, rejectCollector, summary, base.name(), base.readLines(), patchFile, fuzzyOptions, mode);
             CollectedEntry outputEntry = outputCollector.getSingleFile();
             CollectedEntry rejectEntry = rejectCollector.getSingleFile();
             try (OutputStream os = output.open()) {
@@ -144,7 +143,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             patches.open(patchesPrefix);
             Set<String> baseIndex = filterPrefixed(base.index(), ignorePrefixes);
             Set<String> patchesIndex = patches.index();
-            patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchesIndex, base, patches, minFuzz, maxOffset, mode);
+            patchSuccess = doPatch(outputCollector, rejectCollector, summary, baseIndex, patchesIndex, base, patches, fuzzyOptions, mode);
         }
 
         try (MultiOutput output = (MultiOutput) patchedOutput) {
@@ -168,7 +167,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return new Result<>(patchSuccess ? 0 : 1, summary);
     }
 
-    private boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, MultiInput baseInput, MultiInput patchesInput, float minFuzz, int maxOffset, PatchMode mode) throws IOException {
+    private boolean doPatch(FileCollector oCollector, FileCollector rCollector, PatchesSummary summary, Set<String> bEntries, Set<String> pEntries, MultiInput baseInput, MultiInput patchesInput, FuzzyMatchOptions fuzzyOptions, PatchMode mode) throws IOException {
         Map<String, PatchFile> patchFiles = FastStream.of(pEntries)
                 .map(e -> {
                     try {
@@ -218,7 +217,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             summary.changedFiles++;
             PatchFile patchFile = patchFiles.get(file);
             List<String> baseLines = baseInput.readLines(file);
-            result &= doPatch(oCollector, rCollector, summary, file, baseLines, patchFile, minFuzz, maxOffset, mode);
+            result &= doPatch(oCollector, rCollector, summary, file, baseLines, patchFile, fuzzyOptions, mode);
         }
 
         for (String file : missingFiles) {
@@ -234,8 +233,8 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         return result;
     }
 
-    private boolean doPatch(FileCollector outputCollector, FileCollector rejectCollector, PatchesSummary summary, String baseName, List<String> base, PatchFile patchFile, float minFuzz, int maxOffset, PatchMode mode) {
-        Patcher patcher = new Patcher(patchFile, base, minFuzz, maxOffset);
+    private boolean doPatch(FileCollector outputCollector, FileCollector rejectCollector, PatchesSummary summary, String baseName, List<String> base, PatchFile patchFile, FuzzyMatchOptions options, PatchMode mode) {
+        Patcher patcher = new Patcher(patchFile, base, options);
         log(DEBUG, "Patching: " + baseName);
         List<Patcher.Result> results = patcher.patch(mode);
         List<RejectedHunk> rejectedHunks = new ArrayList<>();
@@ -402,8 +401,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         private @Nullable Output patchedOutput;
         private @Nullable Output rejectsOutput;
         private boolean rejectsAsPatches = false;
-        private float minFuzz = FuzzyLineMatcher.DEFAULT_MIN_MATCH_SCORE;
-        private int maxOffset = FuzzyLineMatcher.MatchMatrix.DEFAULT_MAX_OFFSET;
+        private FuzzyMatchOptions fuzzyOptions = FuzzyMatchOptions.DEFAULT; 
         private PatchMode mode = PatchMode.EXACT;
         private String patchesPrefix = "";
 
@@ -480,12 +478,17 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
         }
 
         public Builder minFuzz(float minFuzz) {
-            this.minFuzz = minFuzz;
+            this.fuzzyOptions = fuzzyOptions.minMatchScore(minFuzz);
             return this;
         }
 
         public Builder maxOffset(int maxOffset) {
-            this.maxOffset = maxOffset;
+            this.fuzzyOptions = fuzzyOptions.maxMatchOffset(maxOffset);
+            return this;
+        }
+        
+        public Builder enableDistancePenalty(boolean enableDistancePenalty) {
+            this.fuzzyOptions = fuzzyOptions.enableDistancePenalty(enableDistancePenalty);
             return this;
         }
 
@@ -514,7 +517,7 @@ public class PatchOperation extends CliOperation<PatchOperation.PatchesSummary> 
             if (patchesInput == null) throw new IllegalStateException("patchesInput is required.");
             if (patchedOutput == null) throw new IllegalStateException("patchedOutput is required.");
 
-            return new PatchOperation(logger, level, helpCallback, summary, baseInput, patchesInput, aPrefix, bPrefix, patchedOutput, rejectsOutput, rejectsAsPatches, minFuzz, maxOffset, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
+            return new PatchOperation(logger, level, helpCallback, summary, baseInput, patchesInput, aPrefix, bPrefix, patchedOutput, rejectsOutput, rejectsAsPatches, fuzzyOptions, mode, patchesPrefix, lineEnding, ignorePrefixes.toArray(new String[0]));
         }
     }
 }
