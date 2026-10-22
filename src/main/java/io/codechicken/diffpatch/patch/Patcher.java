@@ -53,28 +53,23 @@ public class Patcher {
     }
 
     public List<Result> patch(PatchMode mode) {
-        if (applied) {
-            throw new RuntimeException("Already applied");
-        }
-        applied = true;
+        // searchOffset is the offset of the last patch (applied location - expected location)
+        // this way if a line is inserted, and all patches are offset by 1, only the first patch is reported as offset
+        // normally this is equivalent to `lastAppliedPatch?.AppliedOffset` but if a patch fails, we subtract its length delta from the search offset
+        int searchOffset = 0;
 
         for (WorkingPatch patch : patches) {
-            if (applyExact(patch)) {
-                continue;
-            }
-            if (mode.ordinal() >= PatchMode.ACCESS.ordinal() && applyAccess(patch)) {
-                continue;
-            }
-            if (mode.ordinal() >= PatchMode.OFFSET.ordinal() && applyOffset(patch)) {
-                continue;
-            }
-            if (mode.ordinal() >= PatchMode.FUZZY.ordinal() && applyFuzzy(patch)) {
-                continue;
-            }
+            if (patch.result != null && patch.result.success
+                    || applyExact(patch, searchOffset)
+                    || mode.ordinal() >= PatchMode.ACCESS.ordinal() && applyAccess(patch, searchOffset)
+                    || mode.ordinal() >= PatchMode.OFFSET.ordinal() && applyOffset(patch, searchOffset)
+                    || mode.ordinal() >= PatchMode.FUZZY.ordinal() && applyFuzzy(patch, searchOffset)) {
 
-            patch.fail();
-            patch.result.searchOffset = searchOffset;
-            searchOffset -= patch.length2 - patch.length1;
+                searchOffset = patch.result.appliedPatch.start2 - patch.start2;
+            } else {
+                patch.fail(searchOffset);
+                searchOffset -= patch.length2 - patch.length1;
+            }
         }
         return FastStream.of(patches).map(e -> e.result).toList();
 
@@ -160,7 +155,7 @@ public class Patcher {
         });
     }
 
-    private boolean applyExact(WorkingPatch patch) {
+    private boolean applyExact(WorkingPatch patch, int searchOffset) {
         int loc = patch.start2 + searchOffset;
         if (loc + patch.length1 > lines.size()) {
             return false;
@@ -174,7 +169,7 @@ public class Patcher {
         return true;
     }
 
-    private boolean applyOffset(WorkingPatch patch) {
+    private boolean applyOffset(WorkingPatch patch, int searchOffset) {
         if (lmText == null) {
             linesToChars();
         }
@@ -211,7 +206,7 @@ public class Patcher {
         return true;
     }
 
-    private boolean applyAccess(WorkingPatch patch) {
+    private boolean applyAccess(WorkingPatch patch, int searchOffset) {
         if (wmLines == null) {
             wordsToChars();
         }
@@ -268,7 +263,7 @@ public class Patcher {
         return true;
     }
 
-    private boolean applyFuzzy(WorkingPatch patch) {
+    private boolean applyFuzzy(WorkingPatch patch, int searchOffset) {
         if (wmLines == null) {
             wordsToChars();
         }
@@ -475,12 +470,12 @@ public class Patcher {
             super(other);
         }
 
-        public void fail() {
-            result = new Result(this, false, null);
+        public void fail(int searchOffset) {
+            result = new Result(this, false, null, searchOffset);
         }
 
         public void succeed(PatchMode mode, Patch appliedPatch) {
-            result = new Result(this, true, mode);
+            result = new Result(this, true, mode, 0);
             result.appliedPatch = appliedPatch;
         }
 
@@ -522,7 +517,7 @@ public class Patcher {
     public static class Result {
 
         public final Patch patch;
-        public final boolean success;
+        public final boolean  success;
         public final @Nullable PatchMode mode;
 
         public int searchOffset;
@@ -532,10 +527,11 @@ public class Patcher {
         public boolean offsetWarning;
         public float fuzzyQuality;
 
-        public Result(Patch patch, boolean success, @Nullable PatchMode mode) {
+        public Result(Patch patch, boolean success, @Nullable PatchMode mode, int searchOffset) {
             this.patch = patch;
             this.success = success;
             this.mode = mode;
+            this.searchOffset = searchOffset;
         }
 
         public String summary() {
