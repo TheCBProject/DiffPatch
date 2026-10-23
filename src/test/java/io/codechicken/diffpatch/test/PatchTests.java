@@ -6,6 +6,7 @@ import io.codechicken.diffpatch.util.PatchMode;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -181,6 +182,26 @@ public class PatchTests extends TestBase {
         assertNotNull(withPenalty.appliedPatch);
         assertNotNull(withoutPenalty.appliedPatch);
 
-        assertTrue(withPenalty.appliedPatch.start2 + minOffset > withoutPenalty.appliedPatch.start2, "Patch without penalty should apply at a much higher offset; expected value greater than " + withoutPenalty.appliedPatch.start2 + ", got " + withPenalty.appliedPatch.start2);
+        assertTrue(withoutPenalty.appliedPatch.start2 > withPenalty.appliedPatch.start2 + minOffset, "Patch without penalty should apply at a much higher offset; expected value greater than " + withoutPenalty.appliedPatch.start2 + ", got " + withPenalty.appliedPatch.start2);
+    }
+
+	@Test
+    public void MultiPatchOffset() throws IOException {
+        // 3 hunks. The patch header positions are outdated due to inserted lines:
+        // Hunk 1: header says line 5, actual at line 7 → offset 2
+        // Hunk 2: header says line 9, searchOffset=2 → loc=11, actual at line 14 → offset 3
+        // Hunk 3: header says line 13, searchOffset=5 → loc=18, actual at line 18 → offset 0 (EXACT via accumulated searchOffset)
+        List<Patcher.Result> results = assertMultiPatch(PatchMode.OFFSET, null, null, null, null);
+
+        assertEquals(3, results.size());
+
+        assertEquals(PatchMode.OFFSET, results.get(0).mode);
+        assertEquals(2, results.get(0).offset);
+
+        assertEquals(PatchMode.OFFSET, results.get(1).mode);
+        assertEquals(3, results.get(1).offset);
+
+        assertEquals(PatchMode.EXACT, results.get(2).mode);
+        assertEquals(0, results.get(2).offset);
     }
 }

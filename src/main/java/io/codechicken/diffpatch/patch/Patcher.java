@@ -296,7 +296,7 @@ public class Patcher {
             }
         }
         patch.succeed(PatchMode.FUZZY, applyExactAt(at, fuzzyPatch));
-        patch.addOffsetResult(fuzzyPatch.start2 - loc, lines.size());
+        patch.addOffsetResult(at - loc, lines.size());
         patch.addFuzzyResult(pair.getRight());
         return true;
     }

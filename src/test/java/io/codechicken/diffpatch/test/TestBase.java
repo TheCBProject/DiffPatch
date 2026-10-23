@@ -22,6 +22,9 @@ import java.util.*;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Assertions;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
  * Created by covers1624 on 30/5/24.
  */
@@ -158,7 +161,17 @@ public abstract class TestBase {
 
         fuzzyOptions = fuzzyOptions != null ? fuzzyOptions : FuzzyMatchOptions.DEFAULT; 
         Patcher patcher = new Patcher(patchFile, linesA, fuzzyOptions);
-        return new PatcherAndResult(patcher, patcher.patch(mode));
+        List<Patcher.Result> results = patcher.patch(mode);
+        
+        int lastOffset = 0;
+        for (Patcher.Result r : results) {
+            if (!r.success) continue;
+            int totalOffset = r.appliedPatch.start2 - r.patch.start1;
+            assertEquals(totalOffset - lastOffset, r.offset);
+            lastOffset = totalOffset;
+        }
+
+        return new PatcherAndResult(patcher, results);
     }
     
     public static Patcher.Result patch(@Nullable PatchMode mode, @Nullable FuzzyMatchOptions fuzzyOptions, @Nullable String testName, @Nullable String patchName) throws IOException {
@@ -171,8 +184,8 @@ public abstract class TestBase {
         
         return single(runPatcher(testName, patchName, mode, fuzzyOptions).results);
     }
-    
-    public static Patcher.Result assertPatch(@Nullable PatchMode mode, @Nullable FuzzyMatchOptions fuzzyOptions, @Nullable String testName, @Nullable String patchName, @Nullable String outputName) throws IOException {
+
+    public static List<Patcher.Result> assertMultiPatch(@Nullable PatchMode mode, @Nullable FuzzyMatchOptions fuzzyOptions, @Nullable String testName, @Nullable String patchName, @Nullable String outputName) throws IOException {
         mode = mode != null ? mode : PatchMode.EXACT;
         // Get the name of the caller
         // To get the caller member name, get a stack trace and step back 1 + 'offset' times
@@ -185,6 +198,15 @@ public abstract class TestBase {
         List<String> expected = Files.readAllLines(testFile("files", outputName + "_b.cs"));
         Assertions.assertLinesMatch(expected, actual.patcher.lines);
 
-        return single(actual.results);
+        return actual.results;
+    }
+    
+    public static Patcher.Result assertPatch(@Nullable PatchMode mode, @Nullable FuzzyMatchOptions fuzzyOptions, @Nullable String testName, @Nullable String patchName, @Nullable String outputName) throws IOException {
+        // Get the name of the caller
+        // To get the caller member name, get a stack trace and step back 1 + 'offset' times
+        // An offset of 1 would mean the caller of whoever called this method
+        patchName = patchName != null ? patchName : new Throwable().getStackTrace()[1].getMethodName();
+
+        return single(assertMultiPatch(mode, fuzzyOptions, testName, patchName, outputName));
     }
 }
