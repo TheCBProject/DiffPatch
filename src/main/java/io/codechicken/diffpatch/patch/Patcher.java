@@ -360,12 +360,12 @@ public class Patcher {
 
         // we're creating twice as many MatchMatrix objects as we need, incurring some wasted allocation and setup time, but it reads easier than trying to precompute all the edge cases
         List<FuzzyLineMatcher.MatchMatrix> fwdMatchers = FastStream.of(ranges)
-                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, fuzzyOptions.maxMatchOffset(), r))
+                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, fuzzyOptions.maxMatchOffset(), fuzzyOptions.insertedLinePenalty(), r))
                 .filter(m -> loc < m.workingRange.getLast())
                 .toList();
         List<FuzzyLineMatcher.MatchMatrix> revMatchers = FastStream.of(ranges)
                 .reversed()
-                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, fuzzyOptions.maxMatchOffset(), r))
+                .map(r -> new FuzzyLineMatcher.MatchMatrix(wmPattern, wmText, fuzzyOptions.maxMatchOffset(), fuzzyOptions.insertedLinePenalty(), r))
                 .filter(m -> loc > m.workingRange.getFirst())
                 .toList();
 

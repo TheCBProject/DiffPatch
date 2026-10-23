@@ -118,6 +118,26 @@ public class PatchTests extends TestBase {
     }
 
     @Test
+    public void InsertedLinePenalty() throws IOException {
+        // Same setup as MaxMatchOffset2, but with lower inserted line penalty (0.25 instead of 0.5)
+        // The lower penalty makes it worthwhile to skip lines in the search text to reach better matches at offset 2
+        //
+        // 0:[%%][%%][%%] 00  64  20  00 
+        // 1: 00  00  00 [%%] 20  64  00 
+        // 2: 00  00  00  20 [%%][20] 00 
+        // -:          -25 -25         
+        // Total Score: 470 / 700 = 67%
+        Patcher.Result result = assertPatch(
+                PatchMode.FUZZY,
+                FuzzyMatchOptions.DEFAULT.maxMatchOffset(2).insertedLinePenalty(0.25f),
+                "ConfigInsertedLines",
+                "Config_LineMatched",
+                "ConfigInsertedLines_LowPenalty"
+        );
+        assertEquals(0.67f, result.fuzzyQuality, 0.01f, "Expected quality");
+    }
+
+    @Test
     public void MaxMatchOffsetLocation() throws IOException {
         // 0: 00  00  00  00  00  64  00 
         // 1: 00  00  00  00  64  20  00 

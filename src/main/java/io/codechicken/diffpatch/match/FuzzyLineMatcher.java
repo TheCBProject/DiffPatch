@@ -14,6 +14,7 @@ public class FuzzyLineMatcher {
 
     public int maxMatchOffset = MatchMatrix.DEFAULT_MAX_OFFSET;
     public float minMatchScore = DEFAULT_MIN_MATCH_SCORE;
+    public float insertedLinePenalty = MatchMatrix.DEFAULT_INSERTED_LINE_PENALTY;
 
     public void matchLinesByWords(int[] matches, List<String> wmLines1, List<String> wmLines2) {
         for (Pair<LineRange, LineRange> entry : LineMatching.unmatchedRanges(matches, wmLines2.size())) {
@@ -54,7 +55,7 @@ public class FuzzyLineMatcher {
         float bestScore = minMatchScore;
         int[] bestMatch = null;
 
-        MatchMatrix mm = new MatchMatrix(pattern, search, maxMatchOffset, null);
+        MatchMatrix mm = new MatchMatrix(pattern, search, maxMatchOffset, insertedLinePenalty, null);
         for (int i = mm.workingRange.getFirst(); ; i++) {
             Pair<Boolean, Float> pair = mm.match(i);
             if (!pair.getLeft()) {
@@ -142,11 +143,13 @@ public class FuzzyLineMatcher {
     public static class MatchMatrix {
 
         public static final int DEFAULT_MAX_OFFSET = 5;
+        public static final float DEFAULT_INSERTED_LINE_PENALTY = 0.5f;
 
         private final int patternLength;
         private final LineRange range;
         // maximum offset between line matches in a run
         private final int maxOffset;
+        private final float insertedLinePenalty;
 
         public LineRange workingRange;
 
@@ -159,16 +162,17 @@ public class FuzzyLineMatcher {
         private int firstNode;
 
         public MatchMatrix(List<String> pattern, List<String> search) {
-            this(pattern, search, DEFAULT_MAX_OFFSET, null);
+            this(pattern, search, DEFAULT_MAX_OFFSET, DEFAULT_INSERTED_LINE_PENALTY, null);
         }
 
-        public MatchMatrix(List<String> pattern, List<String> search, int maxOffset, @Nullable LineRange range) {
+        public MatchMatrix(List<String> pattern, List<String> search, int maxOffset, float insertedLinePenalty, @Nullable LineRange range) {
             if (range == null) {
                 range = LineRange.fromStartLen(0, search.size());
             }
             patternLength = pattern.size();
             this.range = range;
             this.maxOffset = maxOffset;
+            this.insertedLinePenalty = insertedLinePenalty;
             workingRange = LineRange.fromFirstLast(range.getStart() - maxOffset, range.getEnd() - patternLength);
 
             matches = new StraightMatch[maxOffset + 1];
@@ -255,7 +259,7 @@ public class FuzzyLineMatcher {
 
                         float sum = matches[k].nodes[l].sum;
                         if (k > j) {
-                            sum -= 0.5f * (k - j); // penalty for skipping lines in search text
+                            sum -= insertedLinePenalty * (k - j); // penalty for skipping lines in search text
                         }
 
                         if (sum > maxsum) {
@@ -336,7 +340,7 @@ public class FuzzyLineMatcher {
             sb.append(" ");
             for (int i = 1; i < patternLength; i++) {
                 int offset = path[i] - path[i-1] - 1;
-                int penalty = Math.round(-0.5f * offset * 100);
+                int penalty = Math.round(-insertedLinePenalty * offset * 100);
                 if (path[i] < 0 || penalty == 0) {
                     sb.append("    ");
                 } else {
