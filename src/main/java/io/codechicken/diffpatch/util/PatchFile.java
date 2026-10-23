@@ -99,6 +99,18 @@ public class PatchFile {
                     throw new IllegalArgumentException(String.format("Invalid patch line in '%s' at %s:'%s'", line, i, line));
             }
         }
+        
+        if (verifyHeaders) {
+            for (Patch p : patchFile.patches) {
+                int cLen = p.getContextLines().size();
+                if (p.length1 != cLen)
+                    throw new IllegalArgumentException(String.format("Context length (%s) doesn't match header: %s", cLen, p.getHeader()));
+                int pLen = p.getPatchedLines().size();
+                if (p.length2 != pLen)
+                    throw new IllegalArgumentException(String.format("Patched length (%s) doesn't match header: %s", pLen, p.getHeader()));
+            }
+        }
+        
         return patchFile;
     }
 

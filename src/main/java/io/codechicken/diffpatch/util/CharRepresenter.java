@@ -52,15 +52,19 @@ public class CharRepresenter {
 
     private char[] buf = new char[4096];
 
+    private boolean isIdentifierPart(char c) {
+        return Character.isLetterOrDigit(c) || c == '_';
+    }
+
     public String wordsToChars(String line) {
         int b = 0;
 
         for (int i = 0, len; i < line.length(); i += len) {
             char c = line.charAt(i);
-            //identify word
+            // identify word
             len = 1;
-            if (Character.isLetter(c)) {
-                while (i + len < line.length() && Character.isLetterOrDigit(line.charAt(i + len))) {
+            if (isIdentifierPart(c)) {
+                while (i + len < line.length() && isIdentifierPart(line.charAt(i + len))) {
                     len++;
                 }
             } else if (Character.isDigit(c)) {
@@ -96,5 +100,4 @@ public class CharRepresenter {
     public int getMaxWordChar() {
         return charToWord.size();
     }
-
 }

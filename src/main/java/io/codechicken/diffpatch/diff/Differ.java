@@ -35,11 +35,11 @@ public abstract class Differ {
     }
 
     public List<Patch> makePatches(List<String> lines1, List<String> lines2) {
-        return makePatches(lines1, lines2, DEFAULT_CONTEXT, true);
+        return makePatches(lines1, lines2, DEFAULT_CONTEXT);
     }
 
-    public List<Patch> makePatches(List<String> lines1, List<String> lines2, int numContextLines, boolean collate) {
-        return makePatches(diff(lines1, lines2), numContextLines, collate);
+    public List<Patch> makePatches(List<String> lines1, List<String> lines2, int numContextLines) {
+        return makePatches(diff(lines1, lines2), numContextLines);
     }
 
     public static List<Patch> makeFileAdded(List<String> lines) {
@@ -52,16 +52,13 @@ public abstract class Differ {
         return patch.length1 == 0 ? Collections.emptyList() : Collections.singletonList(patch);
     }
 
-    public static List<Patch> makePatches(List<Diff> diffs, int numContextLines, boolean collate) {
+    public static List<Patch> makePatches(List<Diff> diffs, int numContextLines) {
         Patch p = new Patch();
         p.diffs = diffs;
         p.recalculateLength();
         p.trim(numContextLines);
         if (p.length1 == 0) {
             return Collections.emptyList();
-        }
-        if (!collate) {
-            p.uncollate();
         }
         return p.split(numContextLines);
     }
